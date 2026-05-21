@@ -54,6 +54,7 @@ const defaultWorkflow = (data = null, options = {}) => {
       notification: true,
       execContext: 'popup',
       reuseLastState: false,
+      assistedRecovery: true,
       inputAutocomplete: true,
       onError: 'stop-workflow',
       executedBlockOnWeb: false,

@@ -201,6 +201,11 @@ const settingItems = [
     description: t('workflow.settings.reuseLastState.description'),
   },
   {
+    id: 'assistedRecovery',
+    name: 'Assisted recovery',
+    description: 'Pause and allow append-recording when a step fails',
+  },
+  {
     id: 'saveLog',
     name: t('workflow.settings.saveLog'),
     description: '',
