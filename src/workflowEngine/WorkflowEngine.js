@@ -6,7 +6,10 @@ import { fetchApi } from '@/utils/api';
 import { getBlocks } from '@/utils/getSharedData';
 import { clearCache, isObject, parseJSON, sleep } from '@/utils/helper';
 import { MessageListener } from '@/utils/message';
-import { RECOVERY_STATUS, buildRecoveryContext } from '@/utils/workflowRecovery';
+import {
+  RECOVERY_STATUS,
+  buildRecoveryContext,
+} from '@/utils/workflowRecovery';
 import cloneDeep from 'lodash.clonedeep';
 import { nanoid } from 'nanoid';
 import WorkflowWorker from './WorkflowWorker';

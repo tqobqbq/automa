@@ -15,7 +15,7 @@ messageListener.on('workflow:stop', (stateId) => {
 });
 
 messageListener.on('workflow:pause', ({ id, data }) => {
-  if (!id) return;
+  if (!id) return null;
   return WorkflowManager.instance.pauseExecution(id, data);
 });
 

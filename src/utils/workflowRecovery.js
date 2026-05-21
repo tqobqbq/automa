@@ -1,8 +1,6 @@
 export const RECOVERY_STATUS = 'paused-recovery';
 
-const RECOVERABLE_ERROR_MESSAGES = new Set([
-  'element-not-found',
-]);
+const RECOVERABLE_ERROR_MESSAGES = new Set(['element-not-found']);
 
 export function isRecoverableWorkflowError(error) {
   if (!error) return false;

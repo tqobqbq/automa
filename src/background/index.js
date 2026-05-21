@@ -149,7 +149,7 @@ message.on('workflow:stop', (stateId) =>
   BackgroundWorkflowUtils.instance.stopExecution(stateId)
 );
 message.on('workflow:pause', ({ id, data }) => {
-  if (!id) return;
+  if (!id) return null;
   return BackgroundWorkflowUtils.instance.pauseExecution(id, data);
 });
 message.on('workflow:execute', async (workflowData, sender) => {
