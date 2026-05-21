@@ -159,7 +159,7 @@ class WorkflowManager {
    * Pause workflow execution for user-assisted recovery
    * @param {string} stateId
    * @param {object} data
-   * @returns {Promise<void>}
+   * @returns {Promise<object|null>}
    */
   pauseExecution(stateId, data) {
     return this.#state.pause(stateId, data);

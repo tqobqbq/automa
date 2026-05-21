@@ -93,11 +93,12 @@ class WorkflowState {
   async pause(id, data = {}) {
     const state = this.states.get(id);
     if (!state) return null;
+    const status = data.status || 'paused-recovery';
 
     this.states.set(id, {
       ...state,
-      status: data.status || 'paused-recovery',
       ...data,
+      status,
     });
     this._saveToStorage();
 
