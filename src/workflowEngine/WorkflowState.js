@@ -90,6 +90,23 @@ class WorkflowState {
     return id;
   }
 
+  async pause(id, data = {}) {
+    const state = this.states.get(id);
+    if (!state) return null;
+
+    this.states.set(id, {
+      ...state,
+      status: data.status || 'paused-recovery',
+      ...data,
+    });
+    this._saveToStorage();
+
+    this.dispatchEvent('pause', { id, data });
+    this.dispatchEvent('update', { id, data });
+
+    return this.states.get(id);
+  }
+
   async resume(id, nextBlock) {
     const state = this.states.get(id);
     if (!state) return;
