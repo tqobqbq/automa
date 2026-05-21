@@ -82,6 +82,7 @@ const settings = reactive({
   notification: true,
   tabLoadTimeout: 30000,
   inputAutocomplete: true,
+  assistedRecovery: true,
   insertDefaultColumn: true,
   defaultColumnName: 'column',
 });

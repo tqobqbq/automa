@@ -477,7 +477,7 @@ class WorkflowWorker {
         if (restartCount >= maxRestart) {
           delete this.engine.restartWorkersCount[this.id];
           if (
-            this.engine.workflow.settings?.assistedRecovery &&
+            this.engine.workflow.settings?.assistedRecovery !== false &&
             isRecoverableWorkflowError(error)
           ) {
             const recoveryPaused = await this.engine.pauseForRecovery(
@@ -506,7 +506,7 @@ class WorkflowWorker {
         this.engine.restartWorkersCount[this.id] = restartCount + 1;
       } else {
         if (
-          this.engine.workflow.settings?.assistedRecovery &&
+          this.engine.workflow.settings?.assistedRecovery !== false &&
           isRecoverableWorkflowError(error)
         ) {
           const recoveryPaused = await this.engine.pauseForRecovery(
