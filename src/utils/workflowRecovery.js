@@ -17,23 +17,39 @@ export function getRecoverySourceOutput(block) {
   return '1';
 }
 
+function getWorkflowSegments(workflow) {
+  const segments = workflow?.settings?.segments;
+  return Array.isArray(segments) ? segments : [];
+}
+
 export function findSegmentForBlock(workflow, blockId) {
   if (blockId == null) return undefined;
 
-  const segments = workflow?.settings?.segments || [];
+  const segments = getWorkflowSegments(workflow);
   return segments.find(
     (segment) =>
-      segment.entryBlockId === blockId || segment.blockIds?.includes(blockId)
+      segment &&
+      typeof segment === 'object' &&
+      (segment.entryBlockId === blockId ||
+        (Array.isArray(segment.blockIds) && segment.blockIds.includes(blockId)))
   );
 }
 
 export function findNextSegmentEntry(workflow, segmentId) {
-  const segments = workflow?.settings?.segments || [];
-  const index = segments.findIndex((segment) => segment.id === segmentId);
+  const segments = getWorkflowSegments(workflow);
+  const index = segments.findIndex(
+    (segment) =>
+      segment && typeof segment === 'object' && segment.id === segmentId
+  );
   if (index === -1) return null;
 
   return (
-    segments.slice(index + 1).find((segment) => segment.entryBlockId)
+    segments
+      .slice(index + 1)
+      .find(
+        (segment) =>
+          segment && typeof segment === 'object' && segment.entryBlockId
+      )
       ?.entryBlockId || null
   );
 }
