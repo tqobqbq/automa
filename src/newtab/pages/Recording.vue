@@ -60,6 +60,10 @@ import { tasks } from '@/utils/shared';
 import { useWorkflowStore } from '@/stores/workflow';
 import RecordWorkflowUtils from '@/newtab/utils/RecordWorkflowUtils';
 import { sendMessage } from '@/utils/message';
+import {
+  createRecoveryBranch,
+  createStateRouterNode,
+} from '@/newtab/utils/recoveryBranchBuilder';
 
 const browserEvents = {
   onTabCreated: (event) => RecordWorkflowUtils.onTabCreated(event),
@@ -220,6 +224,110 @@ function mapSegmentsToBlocks(segments, flowNodeIds) {
     })
     .filter(Boolean);
 }
+function addDrawflowEdge(edges, data = {}) {
+  edges.push({
+    ...data,
+    id: nanoid(),
+    class: `source-${data.sourceHandle} targte-${data.targetHandle}`,
+  });
+}
+function ensureRecoveryRouter({ workflow, sourceBlock }) {
+  if (!sourceBlock) return null;
+
+  const incomingEdge = workflow.drawflow.edges.find(
+    (edge) => edge.target === sourceBlock.id
+  );
+  if (!incomingEdge) return null;
+
+  const incomingSource = workflow.drawflow.nodes.find(
+    (node) => node.id === incomingEdge?.source
+  );
+  const existingRouter = workflow.drawflow.nodes.find(
+    (node) => node.id === incomingSource?.id && node.label === 'state-router'
+  );
+
+  if (existingRouter) {
+    return {
+      routerNode: {
+        ...existingRouter,
+        data: {
+          ...existingRouter.data,
+          branches: [...(existingRouter.data?.branches || [])],
+        },
+      },
+      edges: workflow.drawflow.edges,
+      nodes: workflow.drawflow.nodes,
+    };
+  }
+
+  const normalOutput = 'branch-normal';
+  const routerNode = createStateRouterNode({
+    sourceBlock,
+    output: normalOutput,
+  });
+  const edges = workflow.drawflow.edges.filter(
+    (edge) => edge.id !== incomingEdge?.id
+  );
+  const nodes = [...workflow.drawflow.nodes, routerNode];
+
+  addDrawflowEdge(edges, {
+    source: incomingEdge.source,
+    target: routerNode.id,
+    sourceHandle: incomingEdge.sourceHandle,
+    targetHandle: `${routerNode.id}-input-1`,
+  });
+
+  addDrawflowEdge(edges, {
+    source: routerNode.id,
+    target: sourceBlock.id,
+    sourceHandle: `${routerNode.id}-output-${normalOutput}`,
+    targetHandle: incomingEdge.targetHandle || `${sourceBlock.id}-input-1`,
+  });
+
+  return {
+    routerNode,
+    edges,
+    nodes,
+  };
+}
+function buildRecoveryDrawflow({ workflow, sourceBlock }) {
+  const recoveryRouter = ensureRecoveryRouter({
+    workflow,
+    sourceBlock,
+  });
+  if (!recoveryRouter) return null;
+
+  const { routerNode, nodes, edges } = recoveryRouter;
+  const recoveryBranch = createRecoveryBranch({
+    name: state.recovery?.reason,
+    firstFlow: state.flows[0],
+  });
+
+  routerNode.data.branches = [
+    ...(routerNode.data.branches || []),
+    recoveryBranch,
+  ];
+
+  const updatedDrawflow = generateDrawflow(
+    {
+      id: routerNode.id,
+      output: recoveryBranch.output,
+    },
+    routerNode
+  );
+  const nextNodes = nodes.map((node) =>
+    node.id === routerNode.id ? routerNode : node
+  );
+
+  return {
+    drawflow: {
+      ...workflow.drawflow,
+      nodes: [...nextNodes, ...updatedDrawflow.nodes],
+      edges: [...edges, ...updatedDrawflow.edges],
+    },
+    flowNodeIds: updatedDrawflow.flowNodeIds,
+  };
+}
 async function stopRecording() {
   if (state.isGenerating) return;
 
@@ -232,13 +340,33 @@ async function stopRecording() {
         const startBlock = workflow.drawflow.nodes.find(
           (node) => node.id === state.connectFrom.id
         );
-        const updatedDrawflow = generateDrawflow(state.connectFrom, startBlock);
+        let updatedDrawflow;
 
-        const drawflow = {
-          ...workflow.drawflow,
-          nodes: [...workflow.drawflow.nodes, ...updatedDrawflow.nodes],
-          edges: [...workflow.drawflow.edges, ...updatedDrawflow.edges],
-        };
+        if (state.recovery) {
+          updatedDrawflow = buildRecoveryDrawflow({
+            workflow,
+            sourceBlock: startBlock,
+          });
+          if (!updatedDrawflow) {
+            throw new Error('recovery-source-block-not-found');
+          }
+        } else {
+          const generatedDrawflow = generateDrawflow(
+            state.connectFrom,
+            startBlock
+          );
+
+          updatedDrawflow = {
+            drawflow: {
+              ...workflow.drawflow,
+              nodes: [...workflow.drawflow.nodes, ...generatedDrawflow.nodes],
+              edges: [...workflow.drawflow.edges, ...generatedDrawflow.edges],
+            },
+            flowNodeIds: generatedDrawflow.flowNodeIds,
+          };
+        }
+
+        const { drawflow } = updatedDrawflow;
         const data = { drawflow };
         const segments = mapSegmentsToBlocks(
           toRaw(state.segments),
