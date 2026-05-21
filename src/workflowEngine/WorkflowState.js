@@ -115,6 +115,14 @@ class WorkflowState {
     this.states.set(id, {
       ...state,
       status: 'running',
+      recovery: null,
+      state: state.state
+        ? {
+            ...state.state,
+            status: 'running',
+            recovery: null,
+          }
+        : state.state,
     });
     this._saveToStorage();
 
