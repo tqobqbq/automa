@@ -223,12 +223,26 @@ class WorkflowWorker {
   resume(nextBlock) {
     if (!this.breakpointState) return;
 
-    const { block, execParam, isRetry } = this.breakpointState;
+    const { block, execParam, isRetry, continuation } = this.breakpointState;
     const payload = { ...execParam, resume: true };
 
     payload.nextBlockBreakpointCount = nextBlock ? 1 : null;
 
-    this.executeBlock(block, payload, isRetry);
+    if (continuation) {
+      const { result } = continuation;
+
+      if (result.nextBlockId && !result.destroyWorker) {
+        this.executeNextBlocks(
+          result.nextBlockId,
+          result.data,
+          payload.nextBlockBreakpointCount
+        );
+      } else {
+        this.engine.destroyWorker(this.id);
+      }
+    } else {
+      this.executeBlock(block, payload, isRetry);
+    }
 
     this.breakpointState = null;
   }
@@ -371,7 +385,12 @@ class WorkflowWorker {
       const nextState = await this.engine.states.get(this.engine.id);
       if (nextState?.status === RECOVERY_STATUS) {
         this.engine.isRecoveryPaused = true;
-        this.breakpointState = { block, execParam, isRetry };
+        this.breakpointState = {
+          block,
+          execParam,
+          isRetry,
+          continuation: { result },
+        };
         return;
       }
 

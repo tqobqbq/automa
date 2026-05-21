@@ -463,7 +463,17 @@ class WorkflowEngine {
     execParam = {},
     isRetry = false
   ) {
-    if (this.isDestroyed || this.isRecoveryPaused) return true;
+    if (this.isDestroyed) return false;
+
+    if (worker) {
+      worker.breakpointState = {
+        block: blockDetail?.block || worker.currentBlock,
+        execParam,
+        isRetry,
+      };
+    }
+
+    if (this.isRecoveryPaused) return true;
     this.isRecoveryPaused = true;
 
     const recovery = buildRecoveryContext({
@@ -475,14 +485,6 @@ class WorkflowEngine {
       error: blockDetail?.error,
       message,
     });
-
-    if (worker) {
-      worker.breakpointState = {
-        block: blockDetail?.block || worker.currentBlock,
-        execParam,
-        isRetry,
-      };
-    }
 
     let pausedState;
     try {
@@ -570,6 +572,7 @@ class WorkflowEngine {
       this.executeQueue();
 
       this.states.off('stop', this.onWorkflowStopped);
+      this.states.off('resume', this.onResumeExecution);
       await this.states.delete(this.id);
 
       if (!this.workflow.settings?.debugMode) {
