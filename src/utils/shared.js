@@ -733,11 +733,13 @@ export const tasks = {
     category: 'conditions',
     inputs: 1,
     outputs: 0,
+    disableEdit: true,
     allowedInputs: true,
     maxConnection: 1,
     data: {
       description: '',
       disableBlock: false,
+      conditions: [],
       findBy: 'cssSelector',
       branches: [],
       fallback: {
