@@ -45,6 +45,15 @@
         >
           <v-remixicon name="riStopLine" />
         </ui-button>
+        <ui-button
+          v-if="workflowState.status === 'paused-recovery' && recovery"
+          v-tooltip="'Append recording from this paused page'"
+          icon
+          class="text-primary"
+          @click="$emit('appendRecord', recovery)"
+        >
+          <v-remixicon name="riRecordCircleLine" />
+        </ui-button>
       </div>
       <ui-list
         v-if="workflowState.state"
@@ -151,7 +160,7 @@ const props = defineProps({
     default: () => ({}),
   },
 });
-defineEmits(['goToBlock']);
+defineEmits(['goToBlock', 'appendRecord']);
 
 let currentRunningEls = [];
 
@@ -160,6 +169,7 @@ const { t, te } = useI18n();
 const activeTab = shallowRef('workflow-data');
 
 const workflowState = computed(() => props.states[0]);
+const recovery = computed(() => workflowState.value?.state?.recovery);
 const workflowData = computed(() => {
   if (!workflowState.value?.state?.ctxData) return {};
   const { ctxData, dataSnapshot } = workflowState.value.state.ctxData;

@@ -167,6 +167,7 @@
             v-if="workflow.testingMode && workflowStates.length > 0"
             :states="workflowStates"
             @goToBlock="goToBlock"
+            @append-record="appendRecordFromRecovery"
           />
           <workflow-editor
             v-if="state.workflowConverted"
@@ -765,6 +766,29 @@ function startRecording({ nodeId, handleId }) {
     state.dataChanged = false;
     router.replace('/recording');
   });
+}
+async function appendRecordFromRecovery(recovery) {
+  if (!recovery?.workflowId || !recovery?.failedBlock?.id) return;
+
+  const output = recovery.failedBlock.output?.startsWith(
+    `${recovery.failedBlock.id}-output-`
+  )
+    ? recovery.failedBlock.output
+    : `${recovery.failedBlock.id}-output-${recovery.failedBlock.output || 1}`;
+
+  await startRecordWorkflow({
+    workflowId: recovery.workflowId,
+    name: recovery.workflowName || workflow.value.name,
+    activeTabId: recovery.activeTab?.id,
+    recovery,
+    connectFrom: {
+      id: recovery.failedBlock.id,
+      output,
+    },
+  });
+
+  state.dataChanged = false;
+  router.replace('/recording');
 }
 function goToBlock(blockId) {
   if (!editor.value) return;
