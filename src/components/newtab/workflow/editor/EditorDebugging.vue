@@ -55,6 +55,23 @@
           <v-remixicon name="riRecordCircleLine" />
         </ui-button>
       </div>
+      <p
+        v-if="recovery?.segment"
+        class="mt-2 text-sm leading-tight text-gray-600 dark:text-gray-300"
+      >
+        Segment: {{ recovery.segment.name }}
+      </p>
+      <div
+        v-if="ambiguityWarnings.length"
+        class="mt-2 text-sm leading-tight text-yellow-600 dark:text-yellow-400"
+      >
+        <p
+          v-for="warning in ambiguityWarnings"
+          :key="warning.ctxData.timestamp"
+        >
+          Ambiguous state: selected {{ warning.ctxData.selectedBranchId }}
+        </p>
+      </div>
       <ui-list
         v-if="workflowState.state"
         class="mt-4 overflow-auto h-[105px] scroll"
@@ -170,6 +187,11 @@ const activeTab = shallowRef('workflow-data');
 
 const workflowState = computed(() => props.states[0]);
 const recovery = computed(() => workflowState.value?.state?.recovery);
+const ambiguityWarnings = computed(() =>
+  (workflowState.value?.state?.logs || []).filter(
+    (item) => item.ctxData?.type === 'ambiguous-state-match'
+  )
+);
 const workflowData = computed(() => {
   if (!workflowState.value?.state?.ctxData) return {};
   const { ctxData, dataSnapshot } = workflowState.value.state.ctxData;
