@@ -15,10 +15,9 @@ export function isRecoverableWorkflowError(error) {
   return Boolean(selector && error.message);
 }
 
-export function getRecoverySourceOutput(block, error) {
+export function getRecoverySourceOutput(block) {
   const onError = block?.data?.onError;
   if (onError?.enable && onError.toDo === 'fallback') return 'fallback';
-  if (error?.nextBlockId) return 'fallback';
   return '1';
 }
 
@@ -40,10 +39,10 @@ export function buildRecoveryContext({
       ? {
           id: block.id,
           label: block.label,
-          output: getRecoverySourceOutput(block, error),
+          output: getRecoverySourceOutput(block),
         }
       : null,
-    activeTab: worker?.activeTab
+    activeTab: worker?.activeTab?.id
       ? {
           id: worker.activeTab.id,
           url: worker.activeTab.url,
