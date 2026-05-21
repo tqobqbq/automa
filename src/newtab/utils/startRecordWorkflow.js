@@ -71,7 +71,10 @@ export default async function (options = {}) {
         }
       }
     }
+
+    return true;
   } catch (error) {
     console.error(error);
+    return false;
   }
 }

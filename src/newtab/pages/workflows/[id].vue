@@ -769,23 +769,31 @@ function startRecording({ nodeId, handleId }) {
 }
 async function appendRecordFromRecovery(recovery) {
   if (!recovery?.workflowId || !recovery?.failedBlock?.id) return;
+  if (recovery.workflowId !== workflow.value.id) return;
+
+  const sourceBlock = workflow.value.drawflow.nodes.find(
+    (node) => node.id === recovery.failedBlock.id
+  );
+  if (!sourceBlock) return;
 
   const output = recovery.failedBlock.output?.startsWith(
-    `${recovery.failedBlock.id}-output-`
+    `${sourceBlock.id}-output-`
   )
     ? recovery.failedBlock.output
-    : `${recovery.failedBlock.id}-output-${recovery.failedBlock.output || 1}`;
+    : `${sourceBlock.id}-output-${recovery.failedBlock.output || 1}`;
 
-  await startRecordWorkflow({
+  const started = await startRecordWorkflow({
     workflowId: recovery.workflowId,
     name: recovery.workflowName || workflow.value.name,
     activeTabId: recovery.activeTab?.id,
     recovery,
     connectFrom: {
-      id: recovery.failedBlock.id,
+      id: sourceBlock.id,
       output,
     },
   });
+
+  if (!started) return;
 
   state.dataChanged = false;
   router.replace('/recording');
