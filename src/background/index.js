@@ -148,6 +148,10 @@ message.on('dashboard:refresh-packages', async () => {
 message.on('workflow:stop', (stateId) =>
   BackgroundWorkflowUtils.instance.stopExecution(stateId)
 );
+message.on('workflow:pause', ({ id, data }) => {
+  if (!id) return;
+  BackgroundWorkflowUtils.instance.pauseExecution(id, data);
+});
 message.on('workflow:execute', async (workflowData, sender) => {
   if (workflowData.includeTabId) {
     if (!workflowData.options) workflowData.options = {};

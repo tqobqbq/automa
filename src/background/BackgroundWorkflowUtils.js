@@ -84,6 +84,25 @@ class BackgroundWorkflowUtils {
   }
 
   /**
+   * Pause workflow execution for user-assisted recovery
+   * @param {string} stateId
+   * @param {object} data
+   * @returns {Promise<void>}
+   */
+  async pauseExecution(stateId, data) {
+    if (IS_FIREFOX) {
+      await this.#ensureWorkflowManager();
+      this.#workflowManager.pauseExecution(stateId, data);
+      return;
+    }
+
+    await BackgroundOffscreen.instance.sendMessage('workflow:pause', {
+      id: stateId,
+      data,
+    });
+  }
+
+  /**
    * Resume workflow execution
    * @param {string} stateId
    * @param {object} nextBlock
