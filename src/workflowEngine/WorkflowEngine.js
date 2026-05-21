@@ -550,6 +550,7 @@ class WorkflowEngine {
       this.historyCtxData = null;
       this.preloadScripts = null;
       this.isRecoveryPaused = false;
+      this.isInBreakpoint = false;
     };
 
     try {
