@@ -11,14 +11,20 @@ export function getRouterOutputHandle(blockId, outputId) {
 }
 
 export function normalizeRouterBranches(branches = []) {
-  return branches
+  const branchList = Array.isArray(branches) ? branches : [];
+
+  return branchList
     .filter((branch) => branch && branch.id)
-    .map((branch, index) => ({
-      ...branch,
-      output: getBranchOutput(branch),
-      priority: Number.isFinite(branch.priority) ? branch.priority : index,
-      conditions: Array.isArray(branch.conditions) ? branch.conditions : [],
-    }))
+    .map((branch, index) => {
+      const priority = Number(branch.priority);
+
+      return {
+        ...branch,
+        output: getBranchOutput(branch),
+        priority: Number.isFinite(priority) ? priority : index,
+        conditions: Array.isArray(branch.conditions) ? branch.conditions : [],
+      };
+    })
     .sort((a, b) => a.priority - b.priority);
 }
 
