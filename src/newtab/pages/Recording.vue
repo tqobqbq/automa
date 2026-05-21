@@ -59,6 +59,7 @@ import browser from 'webextension-polyfill';
 import { tasks } from '@/utils/shared';
 import { useWorkflowStore } from '@/stores/workflow';
 import RecordWorkflowUtils from '@/newtab/utils/RecordWorkflowUtils';
+import { sendMessage } from '@/utils/message';
 
 const browserEvents = {
   onTabCreated: (event) => RecordWorkflowUtils.onTabCreated(event),
@@ -199,6 +200,14 @@ async function stopRecording() {
           id: state.workflowId,
           data: { drawflow },
         });
+
+        if (state.recovery?.stateId) {
+          await sendMessage(
+            'workflow:stop',
+            state.recovery.stateId,
+            'background'
+          );
+        }
       } else {
         const drawflow = generateDrawflow();
 

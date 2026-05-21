@@ -164,7 +164,10 @@
         </template>
         <ui-tab-panel cache value="editor" class="w-full" @keydown="onKeydown">
           <editor-debugging
-            v-if="workflow.testingMode && workflowStates.length > 0"
+            v-if="
+              (workflow.testingMode || hasRecoveryState) &&
+              workflowStates.length > 0
+            "
             :states="workflowStates"
             @goToBlock="goToBlock"
             @append-record="appendRecordFromRecovery"
@@ -573,6 +576,9 @@ const workflow = computed(() => {
 const workflowStates = computed(() =>
   workflowStore.getWorkflowStates(route.params.id)
 );
+const hasRecoveryState = computed(() =>
+  workflowStates.value.some((item) => item.status === 'paused-recovery')
+);
 const activeWorkflowModal = computed(
   () => workflowModals[modalState.name] || {}
 );
@@ -786,6 +792,7 @@ async function appendRecordFromRecovery(recovery) {
     workflowId: recovery.workflowId,
     name: recovery.workflowName || workflow.value.name,
     activeTabId: recovery.activeTab?.id,
+    requireActiveTabId: Boolean(recovery.activeTab?.id),
     recovery,
     connectFrom: {
       id: sourceBlock.id,
