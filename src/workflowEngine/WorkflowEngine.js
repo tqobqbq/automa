@@ -9,6 +9,7 @@ import { MessageListener } from '@/utils/message';
 import {
   RECOVERY_STATUS,
   buildRecoveryContext,
+  findSegmentForBlock,
 } from '@/utils/workflowRecovery';
 import cloneDeep from 'lodash.clonedeep';
 import { nanoid } from 'nanoid';
@@ -42,6 +43,7 @@ class WorkflowEngine {
     this.isUsingProxy = false;
     this.isInBreakpoint = false;
     this.isRecoveryPaused = false;
+    this.segmentRecoveries = [];
 
     this.triggerBlockId = null;
 
@@ -479,11 +481,14 @@ class WorkflowEngine {
     if (this.isRecoveryPaused) return true;
     this.isRecoveryPaused = true;
 
+    const segment = findSegmentForBlock(this.workflow, blockDetail?.block?.id);
     const recovery = buildRecoveryContext({
+      workflow: this.workflow,
       workflowId: this.workflow.id,
       workflowName: this.workflow.name,
       stateId: this.id,
       block: blockDetail?.block,
+      segment,
       worker,
       error: blockDetail?.error,
       message,
@@ -527,6 +532,10 @@ class WorkflowEngine {
       return false;
     }
 
+    if (recovery.segment?.id) {
+      this.segmentRecoveries.push(recovery);
+    }
+
     return true;
   }
 
@@ -554,6 +563,7 @@ class WorkflowEngine {
       this.preloadScripts = null;
       this.isRecoveryPaused = false;
       this.isInBreakpoint = false;
+      this.segmentRecoveries = null;
     };
 
     try {

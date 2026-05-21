@@ -17,18 +17,39 @@ export function getRecoverySourceOutput(block) {
   return '1';
 }
 
+export function findSegmentForBlock(workflow, blockId) {
+  if (blockId == null) return undefined;
+
+  const segments = workflow?.settings?.segments || [];
+  return segments.find(
+    (segment) =>
+      segment.entryBlockId === blockId || segment.blockIds?.includes(blockId)
+  );
+}
+
+export function findNextSegmentEntry(workflow, segmentId) {
+  const segments = workflow?.settings?.segments || [];
+  const index = segments.findIndex((segment) => segment.id === segmentId);
+  if (index === -1) return null;
+
+  return segments.slice(index + 1).find((segment) => segment.entryBlockId)
+    ?.entryBlockId;
+}
+
 export function buildRecoveryContext({
+  workflow,
   workflowId,
   workflowName,
   stateId,
   block,
+  segment,
   worker,
   error,
   message,
 }) {
   return {
-    workflowId,
-    workflowName,
+    workflowId: workflowId || workflow?.id,
+    workflowName: workflowName || workflow?.name,
     stateId,
     reason: message || error?.message || 'Paused for recovery',
     failedBlock: block
@@ -36,6 +57,13 @@ export function buildRecoveryContext({
           id: block.id,
           label: block.label,
           output: getRecoverySourceOutput(block),
+        }
+      : null,
+    segment: segment
+      ? {
+          id: segment.id,
+          name: segment.name,
+          entryBlockId: segment.entryBlockId,
         }
       : null,
     activeTab: worker?.activeTab?.id
