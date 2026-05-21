@@ -32,8 +32,10 @@ export function findNextSegmentEntry(workflow, segmentId) {
   const index = segments.findIndex((segment) => segment.id === segmentId);
   if (index === -1) return null;
 
-  return segments.slice(index + 1).find((segment) => segment.entryBlockId)
-    ?.entryBlockId;
+  return (
+    segments.slice(index + 1).find((segment) => segment.entryBlockId)
+      ?.entryBlockId || null
+  );
 }
 
 export function buildRecoveryContext({
