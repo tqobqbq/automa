@@ -92,11 +92,10 @@ class BackgroundWorkflowUtils {
   async pauseExecution(stateId, data) {
     if (IS_FIREFOX) {
       await this.#ensureWorkflowManager();
-      this.#workflowManager.pauseExecution(stateId, data);
-      return;
+      return this.#workflowManager.pauseExecution(stateId, data);
     }
 
-    await BackgroundOffscreen.instance.sendMessage('workflow:pause', {
+    return BackgroundOffscreen.instance.sendMessage('workflow:pause', {
       id: stateId,
       data,
     });
