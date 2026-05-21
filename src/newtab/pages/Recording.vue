@@ -87,6 +87,7 @@ function generateDrawflow(startBlock, startBlockData) {
 
   const nodes = [];
   const edges = [];
+  const flowNodeIds = [];
 
   const addEdge = (data = {}) => {
     edges.push({
@@ -123,10 +124,12 @@ function generateDrawflow(startBlock, startBlockData) {
     x: startBlockData ? startBlockData.position.x + 280 : 320,
   };
   const groups = {};
+  let groupFlowIndexes = [];
 
   state.flows.forEach((block, index) => {
     if (block.groupId) {
       if (!groups[block.groupId]) groups[block.groupId] = [];
+      groupFlowIndexes.push(index);
 
       groups[block.groupId].push({
         id: block.id,
@@ -153,6 +156,14 @@ function generateDrawflow(startBlock, startBlockData) {
 
     prevNodeId = nextNodeId;
     nextNodeId = nanoid();
+    flowNodeIds[index] = node.id;
+
+    if (groupFlowIndexes.length > 0) {
+      groupFlowIndexes.forEach((flowIndex) => {
+        flowNodeIds[flowIndex] = node.id;
+      });
+      groupFlowIndexes = [];
+    }
 
     if (index !== state.flows.length - 1) {
       addEdge({
@@ -173,8 +184,41 @@ function generateDrawflow(startBlock, startBlockData) {
 
   return {
     edges,
+    flowNodeIds,
     nodes,
   };
+}
+function mapSegmentsToBlocks(segments, flowNodeIds) {
+  if (!Array.isArray(segments) || segments.length === 0) return [];
+
+  return segments
+    .map((segment, index) => {
+      const entryBlockId = flowNodeIds[segment.entryFlowIndex];
+      if (!entryBlockId) return null;
+
+      const nextEntryFlowIndex = segments[index + 1]?.entryFlowIndex;
+      const endFlowIndex =
+        typeof segment.exitFlowIndex === 'number'
+          ? segment.exitFlowIndex
+          : (nextEntryFlowIndex ?? flowNodeIds.length) - 1;
+      const blockIds = flowNodeIds
+        .slice(segment.entryFlowIndex, endFlowIndex + 1)
+        .filter(
+          (blockId, blockIndex, ids) =>
+            blockId && ids.indexOf(blockId) === blockIndex
+        );
+
+      return {
+        id: segment.id,
+        name: segment.name,
+        tabId: segment.tabId,
+        url: segment.url,
+        origin: segment.origin,
+        entryBlockId,
+        blockIds,
+      };
+    })
+    .filter(Boolean);
 }
 async function stopRecording() {
   if (state.isGenerating) return;
@@ -196,9 +240,12 @@ async function stopRecording() {
           edges: [...workflow.drawflow.edges, ...updatedDrawflow.edges],
         };
         const data = { drawflow };
-        const segments = toRaw(state.segments);
+        const segments = mapSegmentsToBlocks(
+          toRaw(state.segments),
+          updatedDrawflow.flowNodeIds
+        );
 
-        if (Array.isArray(segments) && segments.length > 0) {
+        if (segments.length > 0) {
           data.settings = {
             ...workflow.settings,
             segments: [...(workflow.settings?.segments || []), ...segments],
@@ -219,6 +266,10 @@ async function stopRecording() {
         }
       } else {
         const drawflow = generateDrawflow();
+        const segments = mapSegmentsToBlocks(
+          toRaw(state.segments),
+          drawflow.flowNodeIds
+        );
 
         await workflowStore.insert({
           drawflow,
@@ -226,7 +277,7 @@ async function stopRecording() {
           description: state.description ?? '',
           settings: {
             assistedRecovery: true,
-            segments: state.segments || [],
+            segments,
           },
         });
       }
