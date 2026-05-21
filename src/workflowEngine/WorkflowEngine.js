@@ -514,6 +514,7 @@ class WorkflowEngine {
             })),
           name: this.workflow.name,
           logs: this.history,
+          segmentRecoveries: this.segmentRecoveries,
           ctxData: {
             ctxData: this.historyCtxData,
             dataSnapshot: this.refDataSnapshots,
@@ -539,7 +540,23 @@ class WorkflowEngine {
     return true;
   }
 
+  async continueAfterSegmentRecovery() {
+    this.isRecoveryPaused = false;
+    this.isInBreakpoint = false;
+
+    await this.updateState({
+      status: 'running',
+      recovery: null,
+      segmentRecoveries: this.segmentRecoveries,
+    });
+  }
+
   async destroy(status, message, blockDetail) {
+    const finalStatus =
+      status === 'success' && this.segmentRecoveries?.length > 0
+        ? 'partial-success'
+        : status;
+
     const cleanUp = () => {
       this.id = null;
       this.states = null;
@@ -598,7 +615,7 @@ class WorkflowEngine {
           workflowId: this.workflow.id,
           workflowName: this.workflow.name,
           nodesCount: this.workflow.drawflow.nodes.length,
-          status,
+          status: finalStatus,
           message: message || '',
           startedAt: new Date(this.startedTimestamp).toISOString(),
           endedAt: new Date(endedTimestamp).toISOString(),
@@ -622,7 +639,7 @@ class WorkflowEngine {
       }
 
       this.dispatchEvent('destroyed', {
-        status,
+        status: finalStatus,
         message,
         blockDetail,
         id: this.id,
@@ -643,7 +660,7 @@ class WorkflowEngine {
         };
 
         BrowserAPIService.storage.local.set(workflowState);
-      } else if (status === 'success') {
+      } else if (finalStatus === 'success') {
         clearCache(this.workflow);
       }
 
@@ -680,7 +697,7 @@ class WorkflowEngine {
         await this.logger.add({
           detail: {
             name,
-            status,
+            status: finalStatus,
             teamId,
             message,
             id: this.id,
@@ -725,6 +742,7 @@ class WorkflowEngine {
       currentBlock: [],
       name: this.workflow.name,
       logs: this.history,
+      segmentRecoveries: this.segmentRecoveries,
       ctxData: {
         ctxData: this.historyCtxData,
         dataSnapshot: this.refDataSnapshots,
@@ -733,10 +751,12 @@ class WorkflowEngine {
     };
 
     this.workers.forEach((worker) => {
+      if (!worker.currentBlock) return;
+
       const { id, label, startedAt } = worker.currentBlock;
 
       state.currentBlock.push({ id, name: label, startedAt });
-      state.tabIds.push(worker.activeTab.id);
+      if (worker.activeTab?.id != null) state.tabIds.push(worker.activeTab.id);
     });
 
     await this.states.update(this.id, { state });

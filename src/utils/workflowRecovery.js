@@ -54,6 +54,18 @@ export function findNextSegmentEntry(workflow, segmentId) {
   );
 }
 
+export function canContinueAfterSegmentFailure(workflow, blockId) {
+  const segment = findSegmentForBlock(workflow, blockId);
+  if (!segment) return { canContinue: false, segment: null, nextBlockId: null };
+
+  const nextBlockId = findNextSegmentEntry(workflow, segment.id);
+  return {
+    canContinue: Boolean(nextBlockId),
+    segment,
+    nextBlockId,
+  };
+}
+
 export function buildRecoveryContext({
   workflow,
   workflowId,

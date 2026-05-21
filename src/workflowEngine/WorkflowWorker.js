@@ -9,6 +9,7 @@ import {
 } from '@/utils/helper';
 import {
   RECOVERY_STATUS,
+  canContinueAfterSegmentFailure,
   isRecoverableWorkflowError,
 } from '@/utils/workflowRecovery';
 import cloneDeep from 'lodash.clonedeep';
@@ -353,6 +354,26 @@ class WorkflowWorker {
         execParam.nextBlockBreakpointCount
       );
     };
+    const continueAfterSegmentRecovery = async () => {
+      const continuation = canContinueAfterSegmentFailure(
+        this.engine.workflow,
+        block.id
+      );
+      if (!continuation.canContinue) return false;
+
+      const nextSegmentBlock = this.engine.blocks[continuation.nextBlockId];
+      if (!nextSegmentBlock) return false;
+
+      this.breakpointState = null;
+      await this.engine.continueAfterSegmentRecovery();
+      await this.executeBlock(nextSegmentBlock, {
+        ...execParam,
+        prevBlockData,
+        segmentRecoveryContinue: true,
+      });
+
+      return true;
+    };
 
     try {
       let result;
@@ -491,7 +512,10 @@ class WorkflowWorker {
               execParam,
               isRetry
             );
-            if (recoveryPaused) return;
+            if (recoveryPaused) {
+              if (await continueAfterSegmentRecovery()) return;
+              return;
+            }
           }
 
           this.engine.destroy('error', error.message, errorLogItem);
@@ -520,7 +544,10 @@ class WorkflowWorker {
             execParam,
             isRetry
           );
-          if (recoveryPaused) return;
+          if (recoveryPaused) {
+            if (await continueAfterSegmentRecovery()) return;
+            return;
+          }
         }
 
         this.engine.destroy('error', error.message, errorLogItem);
