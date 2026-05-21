@@ -2,6 +2,46 @@ import browser from 'webextension-polyfill';
 
 const validateUrl = (str) => str?.startsWith('http');
 const isMV2 = browser.runtime.getManifest().manifest_version === 2;
+const getHostname = (url) => {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return '';
+  }
+};
+const ensureSegments = (recording) => {
+  if (!Array.isArray(recording.segments)) recording.segments = [];
+
+  return recording.segments;
+};
+const startSegment = (recording, { tabId, url, flowIndex }) => {
+  const hostname = getHostname(url);
+  if (!hostname) return null;
+
+  const segments = ensureSegments(recording);
+  const lastSegment = segments.at(-1);
+  if (
+    lastSegment &&
+    lastSegment.exitFlowIndex == null &&
+    lastSegment.tabId === tabId
+  ) {
+    return null;
+  }
+
+  const segment = {
+    id: `segment-${Date.now()}-${segments.length + 1}`,
+    name: hostname,
+    tabId,
+    url,
+    entryFlowIndex: flowIndex,
+    exitFlowIndex: null,
+    origin: 'recorded-tab',
+  };
+
+  segments.push(segment);
+
+  return segment;
+};
 
 class RecordWorkflowUtils {
   static async updateRecording(callback) {
@@ -36,6 +76,14 @@ class RecordWorkflowUtils {
             description: tab.title || validUrl,
           },
         });
+
+        if (validUrl) {
+          startSegment(recording, {
+            tabId: tab.id,
+            url: validUrl,
+            flowIndex: recording.flows.length - 1,
+          });
+        }
       }
 
       recording.activeTab = {
@@ -63,6 +111,11 @@ class RecordWorkflowUtils {
           createIfNoMatch: true,
         },
       });
+      startSegment(recording, {
+        tabId: id,
+        url,
+        flowIndex: recording.flows.length - 1,
+      });
     });
   }
 
@@ -82,6 +135,14 @@ class RecordWorkflowUtils {
       if (isInvalidNewtabFlow) {
         lastFlow.data.url = url;
         lastFlow.description = url;
+
+        if (validateUrl(url)) {
+          startSegment(recording, {
+            tabId,
+            url,
+            flowIndex: recording.flows.length - 1,
+          });
+        }
       } else if (validateUrl(url)) {
         if (lastFlow?.id !== 'link' || !lastFlow.isClickLink) {
           recording.flows.push({
@@ -91,6 +152,11 @@ class RecordWorkflowUtils {
               url,
               updatePrevTab: recording.activeTab.id === tabId,
             },
+          });
+          startSegment(recording, {
+            tabId,
+            url,
+            flowIndex: recording.flows.length - 1,
           });
         }
 

@@ -195,10 +195,18 @@ async function stopRecording() {
           nodes: [...workflow.drawflow.nodes, ...updatedDrawflow.nodes],
           edges: [...workflow.drawflow.edges, ...updatedDrawflow.edges],
         };
+        const data = { drawflow };
+
+        if (state.segments) {
+          data.settings = {
+            ...workflow.settings,
+            segments: toRaw(state.segments),
+          };
+        }
 
         await workflowStore.update({
           id: state.workflowId,
-          data: { drawflow },
+          data,
         });
 
         if (state.recovery?.stateId) {
@@ -215,6 +223,10 @@ async function stopRecording() {
           drawflow,
           name: state.name,
           description: state.description ?? '',
+          settings: {
+            assistedRecovery: true,
+            segments: state.segments || [],
+          },
         });
       }
     }
