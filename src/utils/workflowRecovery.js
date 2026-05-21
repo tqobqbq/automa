@@ -49,8 +49,7 @@ export function findNextSegmentEntry(workflow, segmentId) {
       .find(
         (segment) =>
           segment && typeof segment === 'object' && segment.entryBlockId
-      )
-      ?.entryBlockId || null
+      )?.entryBlockId || null
   );
 }
 

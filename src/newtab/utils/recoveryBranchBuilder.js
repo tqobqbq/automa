@@ -80,7 +80,10 @@ export function createNormalBranch({ sourceBlock, output = 'branch-normal' }) {
   };
 }
 
-export function createStateRouterNode({ sourceBlock, output = 'branch-normal' }) {
+export function createStateRouterNode({
+  sourceBlock,
+  output = 'branch-normal',
+}) {
   const id = nanoid();
 
   return {

@@ -35,7 +35,7 @@ function valueMatches(actual, condition) {
 }
 
 async function findConditionElement(block, condition, handleSelector) {
-  const selector = condition.selector;
+  const { selector } = condition;
   if (!selector) return null;
 
   return handleSelector({
@@ -64,7 +64,10 @@ async function evaluateCondition(block, condition, handleSelector) {
   if (conditionType === 'text') {
     if (!element) return false;
 
-    return textMatches(element.textContent || element.innerText || '', condition);
+    return textMatches(
+      element.textContent || element.innerText || '',
+      condition
+    );
   }
 
   if (!element) return false;
@@ -88,7 +91,9 @@ async function branchMatches(block, branch, handleSelector) {
 
 export default async function stateRouter(block, helpers = {}) {
   const handleSelector = helpers.handleSelector || defaultHandleSelector;
-  const branches = Array.isArray(block.data.branches) ? block.data.branches : [];
+  const branches = Array.isArray(block.data.branches)
+    ? block.data.branches
+    : [];
   const matchedBranchIds = [];
 
   for (const branch of branches) {
