@@ -7,6 +7,7 @@ import {
   sleep,
   toCamelCase,
 } from '@/utils/helper';
+import { isRecoverableWorkflowError } from '@/utils/workflowRecovery';
 import cloneDeep from 'lodash.clonedeep';
 import { convertData, waitTabLoaded } from './helper';
 import templating from './templating';
@@ -451,6 +452,22 @@ class WorkflowWorker {
 
         this.engine.restartWorkersCount[this.id] = restartCount + 1;
       } else {
+        if (
+          this.engine.workflow.settings?.assistedRecovery &&
+          isRecoverableWorkflowError(error)
+        ) {
+          await this.engine.pauseForRecovery(
+            error.message,
+            {
+              ...errorLogItem,
+              block,
+              error,
+            },
+            this
+          );
+          return;
+        }
+
         this.engine.destroy('error', error.message, errorLogItem);
       }
     }

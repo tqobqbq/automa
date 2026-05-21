@@ -6,6 +6,7 @@ import { fetchApi } from '@/utils/api';
 import { getBlocks } from '@/utils/getSharedData';
 import { clearCache, isObject, parseJSON, sleep } from '@/utils/helper';
 import { MessageListener } from '@/utils/message';
+import { RECOVERY_STATUS, buildRecoveryContext } from '@/utils/workflowRecovery';
 import cloneDeep from 'lodash.clonedeep';
 import { nanoid } from 'nanoid';
 import WorkflowWorker from './WorkflowWorker';
@@ -448,6 +449,52 @@ class WorkflowEngine {
     if (this.workers.size === 0) {
       this.destroy('success');
     }
+  }
+
+  async pauseForRecovery(message, blockDetail, worker) {
+    if (this.isDestroyed) return;
+
+    const recovery = buildRecoveryContext({
+      workflowId: this.workflow.id,
+      workflowName: this.workflow.name,
+      stateId: this.id,
+      block: blockDetail?.block,
+      worker,
+      error: blockDetail?.error,
+      message,
+    });
+
+    this.workers.forEach((item) => {
+      item.breakpointState = {
+        block: item.currentBlock,
+        execParam: {},
+        isRetry: false,
+      };
+    });
+
+    await this.states.pause(this.id, {
+      status: RECOVERY_STATUS,
+      recovery,
+      state: {
+        status: RECOVERY_STATUS,
+        recovery,
+        tabIds: [...this.workers.values()]
+          .map((item) => item.activeTab?.id)
+          .filter((id) => id != null),
+        currentBlock: [...this.workers.values()].map((item) => ({
+          id: item.currentBlock?.id,
+          name: item.currentBlock?.label,
+          startedAt: item.currentBlock?.startedAt,
+        })),
+        name: this.workflow.name,
+        logs: this.history,
+        ctxData: {
+          ctxData: this.historyCtxData,
+          dataSnapshot: this.refDataSnapshots,
+        },
+        startedTimestamp: this.startedTimestamp,
+      },
+    });
   }
 
   async destroy(status, message, blockDetail) {
