@@ -5,10 +5,16 @@ const isMV2 = browser.runtime.getManifest().manifest_version === 2;
 export default async function (options = {}) {
   try {
     const flows = [];
-    const [activeTab] = await browser.tabs.query({
-      active: true,
-      url: '*://*/*',
-    });
+    let activeTab;
+    if (options.activeTabId) {
+      activeTab = await browser.tabs.get(options.activeTabId);
+    } else {
+      [activeTab] = await browser.tabs.query({
+        active: true,
+        url: '*://*/*',
+      });
+    }
+    const { activeTabId, ...recordingOptions } = options;
 
     if (activeTab && activeTab.url.startsWith('http')) {
       flows.push({
@@ -29,7 +35,7 @@ export default async function (options = {}) {
           id: activeTab?.id,
           url: activeTab?.url,
         },
-        ...options,
+        ...recordingOptions,
       },
     });
 

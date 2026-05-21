@@ -94,11 +94,14 @@ function generateDrawflow(startBlock, startBlockData) {
       class: `source-${data.sourceHandle} targte-${data.targetHandle}`,
     });
   };
+  const sourceHandle = startBlock?.output?.includes('-output-')
+    ? startBlock.output
+    : `${prevNodeId}-output-${startBlock?.output || 1}`;
   addEdge({
     source: prevNodeId,
     target: nextNodeId,
     targetHandle: `${nextNodeId}-input-1`,
-    sourceHandle: startBlock?.output || `${prevNodeId}-output-1`,
+    sourceHandle,
   });
 
   if (!startBlock) {
