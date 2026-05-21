@@ -196,11 +196,12 @@ async function stopRecording() {
           edges: [...workflow.drawflow.edges, ...updatedDrawflow.edges],
         };
         const data = { drawflow };
+        const segments = toRaw(state.segments);
 
-        if (state.segments) {
+        if (Array.isArray(segments) && segments.length > 0) {
           data.settings = {
             ...workflow.settings,
-            segments: toRaw(state.segments),
+            segments: [...(workflow.settings?.segments || []), ...segments],
           };
         }
 
@@ -259,6 +260,26 @@ async function stopRecording() {
 }
 function removeBlock(index) {
   state.flows.splice(index, 1);
+
+  if (Array.isArray(state.segments)) {
+    state.segments = state.segments
+      .filter((segment) => segment.entryFlowIndex !== index)
+      .map((segment) => {
+        const nextSegment = { ...segment };
+
+        if (nextSegment.entryFlowIndex > index) {
+          nextSegment.entryFlowIndex -= 1;
+        }
+
+        if (nextSegment.exitFlowIndex === index) {
+          nextSegment.exitFlowIndex = null;
+        } else if (nextSegment.exitFlowIndex > index) {
+          nextSegment.exitFlowIndex -= 1;
+        }
+
+        return nextSegment;
+      });
+  }
 
   browser.storage.local.set({ recording: toRaw(state) });
 }
