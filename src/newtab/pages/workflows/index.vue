@@ -31,6 +31,13 @@
               <ui-list-item
                 v-close-popover
                 class="cursor-pointer"
+                @click="createCheckInWorkflow"
+              >
+                Create check-in workflow
+              </ui-list-item>
+              <ui-list-item
+                v-close-popover
+                class="cursor-pointer"
                 @click="initRecordWorkflow"
               >
                 {{ t('home.record.title') }}
@@ -168,6 +175,13 @@
                   @click="addWorkflowModal.show = true"
                 >
                   {{ t('workflow.new') }}
+                </ui-list-item>
+                <ui-list-item
+                  v-close-popover
+                  class="cursor-pointer"
+                  @click="createCheckInWorkflow"
+                >
+                  Create check-in workflow
                 </ui-list-item>
                 <ui-list-item
                   v-close-popover
@@ -486,6 +500,24 @@ function addWorkflow() {
       router.push(`/workflows/${workflowId}`);
     })
     .finally(clearAddWorkflowModal);
+}
+function createCheckInWorkflow() {
+  workflowStore
+    .insert({
+      name: 'Daily check-in',
+      folderId: state.activeFolder,
+      description: 'Recorded check-in workflow with assisted recovery enabled',
+      settings: {
+        assistedRecovery: true,
+        notification: true,
+        saveLog: true,
+        onError: 'stop-workflow',
+      },
+    })
+    .then((workflows) => {
+      const workflowId = Object.keys(workflows)[0];
+      router.push(`/workflows/${workflowId}`);
+    });
 }
 async function checkWorkflowPermissions(workflows) {
   let requiredPermissions = [];
