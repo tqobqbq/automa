@@ -7,8 +7,13 @@ export default async function (options = {}) {
     const flows = [];
     let activeTab;
     if (options.activeTabId) {
-      activeTab = await browser.tabs.get(options.activeTabId);
-    } else {
+      try {
+        activeTab = await browser.tabs.get(options.activeTabId);
+      } catch (error) {
+        console.error(error);
+      }
+    }
+    if (!activeTab?.url?.startsWith('http')) {
       [activeTab] = await browser.tabs.query({
         active: true,
         url: '*://*/*',

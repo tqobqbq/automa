@@ -94,7 +94,7 @@ function generateDrawflow(startBlock, startBlockData) {
       class: `source-${data.sourceHandle} targte-${data.targetHandle}`,
     });
   };
-  const sourceHandle = startBlock?.output?.includes('-output-')
+  const sourceHandle = startBlock?.output?.startsWith(`${prevNodeId}-output-`)
     ? startBlock.output
     : `${prevNodeId}-output-${startBlock?.output || 1}`;
   addEdge({
