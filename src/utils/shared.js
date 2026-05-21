@@ -725,6 +725,26 @@ export const tasks = {
       retryTimeout: 1000,
     },
   },
+  'state-router': {
+    name: 'State router',
+    description: 'Route by current page state',
+    icon: 'riRouteLine',
+    component: 'BlockConditions',
+    category: 'conditions',
+    inputs: 1,
+    outputs: 0,
+    allowedInputs: true,
+    maxConnection: 1,
+    data: {
+      description: '',
+      disableBlock: false,
+      findBy: 'cssSelector',
+      branches: [],
+      fallback: {
+        type: 'segment-recovery',
+      },
+    },
+  },
   'element-exists': {
     name: 'Element exists',
     description: 'Check if an element is exists',
