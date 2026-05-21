@@ -87,7 +87,7 @@ class BackgroundWorkflowUtils {
    * Pause workflow execution for user-assisted recovery
    * @param {string} stateId
    * @param {object} data
-   * @returns {Promise<void>}
+   * @returns {Promise<object|null>}
    */
   async pauseExecution(stateId, data) {
     if (IS_FIREFOX) {
