@@ -28,6 +28,7 @@ class WorkflowEngine {
 
     this.workerId = 0;
     this.workers = new Map();
+    this.restartWorkersCount = {};
 
     this.packagesCache = {};
     this.extractedGroup = {};
@@ -113,6 +114,9 @@ class WorkflowEngine {
     };
     this.onResumeExecution = ({ id, nextBlock }) => {
       if (this.id !== id || this.isDestroyed) return;
+
+      this.isRecoveryPaused = false;
+      this.isInBreakpoint = false;
 
       this.workers.forEach((worker) => {
         worker.resume(nextBlock);
@@ -480,31 +484,38 @@ class WorkflowEngine {
       };
     }
 
-    const pausedState = await this.states.pause(this.id, {
-      status: RECOVERY_STATUS,
-      recovery,
-      state: {
+    let pausedState;
+    try {
+      pausedState = await this.states.pause(this.id, {
         status: RECOVERY_STATUS,
         recovery,
-        tabIds: [...this.workers.values()]
-          .map((item) => item.activeTab?.id)
-          .filter((id) => id != null),
-        currentBlock: [...this.workers.values()]
-          .filter((item) => item.currentBlock?.id)
-          .map((item) => ({
-            id: item.currentBlock.id,
-            name: item.currentBlock.label,
-            startedAt: item.currentBlock.startedAt,
-          })),
-        name: this.workflow.name,
-        logs: this.history,
-        ctxData: {
-          ctxData: this.historyCtxData,
-          dataSnapshot: this.refDataSnapshots,
+        state: {
+          status: RECOVERY_STATUS,
+          recovery,
+          tabIds: [...this.workers.values()]
+            .map((item) => item.activeTab?.id)
+            .filter((id) => id != null),
+          currentBlock: [...this.workers.values()]
+            .filter((item) => item.currentBlock?.id)
+            .map((item) => ({
+              id: item.currentBlock.id,
+              name: item.currentBlock.label,
+              startedAt: item.currentBlock.startedAt,
+            })),
+          name: this.workflow.name,
+          logs: this.history,
+          ctxData: {
+            ctxData: this.historyCtxData,
+            dataSnapshot: this.refDataSnapshots,
+          },
+          startedTimestamp: this.startedTimestamp,
         },
-        startedTimestamp: this.startedTimestamp,
-      },
-    });
+      });
+    } catch (error) {
+      console.error(error);
+      this.isRecoveryPaused = false;
+      return false;
+    }
 
     if (!pausedState) {
       this.isRecoveryPaused = false;
@@ -536,6 +547,7 @@ class WorkflowEngine {
       this.columnsId = null;
       this.historyCtxData = null;
       this.preloadScripts = null;
+      this.isRecoveryPaused = false;
     };
 
     try {
