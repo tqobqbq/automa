@@ -37,6 +37,7 @@ class WorkflowEngine {
     this.isDestroyed = false;
     this.isUsingProxy = false;
     this.isInBreakpoint = false;
+    this.isRecoveryPaused = false;
 
     this.triggerBlockId = null;
 
@@ -451,8 +452,15 @@ class WorkflowEngine {
     }
   }
 
-  async pauseForRecovery(message, blockDetail, worker) {
-    if (this.isDestroyed) return;
+  async pauseForRecovery(
+    message,
+    blockDetail,
+    worker,
+    execParam = {},
+    isRetry = false
+  ) {
+    if (this.isDestroyed || this.isRecoveryPaused) return true;
+    this.isRecoveryPaused = true;
 
     const recovery = buildRecoveryContext({
       workflowId: this.workflow.id,
@@ -464,15 +472,15 @@ class WorkflowEngine {
       message,
     });
 
-    this.workers.forEach((item) => {
-      item.breakpointState = {
-        block: item.currentBlock,
-        execParam: {},
-        isRetry: false,
+    if (worker) {
+      worker.breakpointState = {
+        block: blockDetail?.block || worker.currentBlock,
+        execParam,
+        isRetry,
       };
-    });
+    }
 
-    await this.states.pause(this.id, {
+    const pausedState = await this.states.pause(this.id, {
       status: RECOVERY_STATUS,
       recovery,
       state: {
@@ -481,11 +489,13 @@ class WorkflowEngine {
         tabIds: [...this.workers.values()]
           .map((item) => item.activeTab?.id)
           .filter((id) => id != null),
-        currentBlock: [...this.workers.values()].map((item) => ({
-          id: item.currentBlock?.id,
-          name: item.currentBlock?.label,
-          startedAt: item.currentBlock?.startedAt,
-        })),
+        currentBlock: [...this.workers.values()]
+          .filter((item) => item.currentBlock?.id)
+          .map((item) => ({
+            id: item.currentBlock.id,
+            name: item.currentBlock.label,
+            startedAt: item.currentBlock.startedAt,
+          })),
         name: this.workflow.name,
         logs: this.history,
         ctxData: {
@@ -495,6 +505,13 @@ class WorkflowEngine {
         startedTimestamp: this.startedTimestamp,
       },
     });
+
+    if (!pausedState) {
+      this.isRecoveryPaused = false;
+      return false;
+    }
+
+    return true;
   }
 
   async destroy(status, message, blockDetail) {

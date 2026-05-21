@@ -7,7 +7,10 @@ import {
   sleep,
   toCamelCase,
 } from '@/utils/helper';
-import { isRecoverableWorkflowError } from '@/utils/workflowRecovery';
+import {
+  RECOVERY_STATUS,
+  isRecoverableWorkflowError,
+} from '@/utils/workflowRecovery';
 import cloneDeep from 'lodash.clonedeep';
 import { convertData, waitTabLoaded } from './helper';
 import templating from './templating';
@@ -244,12 +247,13 @@ class WorkflowWorker {
     const prevBlock = this.currentBlock;
     this.currentBlock = { ...block, startedAt: startExecuteTime };
 
+    const isRecoveryPaused = currentState.status === RECOVERY_STATUS;
     const isInBreakpoint =
       this.engine.isTestingMode &&
       ((block.data?.$breakpoint && !execParam.resume) ||
         execParam.nextBlockBreakpointCount === 0);
 
-    if (!isRetry) {
+    if (!isRetry && !isRecoveryPaused) {
       const payload = {
         activeTabUrl: this.activeTab.url,
         childWorkflowId: this.childWorkflowId,
@@ -265,7 +269,12 @@ class WorkflowWorker {
       execParam.nextBlockBreakpointCount -= 1;
     }
 
-    if (isInBreakpoint || currentState.status === 'breakpoint') {
+    if (
+      isInBreakpoint ||
+      currentState.status === 'breakpoint' ||
+      isRecoveryPaused
+    ) {
+      if (isRecoveryPaused) this.engine.isRecoveryPaused = true;
       this.engine.isInBreakpoint = true;
       this.breakpointState = { block, execParam, isRetry };
 
@@ -359,6 +368,13 @@ class WorkflowWorker {
         });
       }
 
+      const nextState = await this.engine.states.get(this.engine.id);
+      if (nextState?.status === RECOVERY_STATUS) {
+        this.engine.isRecoveryPaused = true;
+        this.breakpointState = { block, execParam, isRetry };
+        return;
+      }
+
       if (result.nextBlockId && !result.destroyWorker) {
         if (blockDelay > 0) {
           setTimeout(() => {
@@ -441,6 +457,24 @@ class WorkflowWorker {
 
         if (restartCount >= maxRestart) {
           delete this.engine.restartWorkersCount[this.id];
+          if (
+            this.engine.workflow.settings?.assistedRecovery &&
+            isRecoverableWorkflowError(error)
+          ) {
+            const recoveryPaused = await this.engine.pauseForRecovery(
+              error.message,
+              {
+                ...errorLogItem,
+                block,
+                error,
+              },
+              this,
+              execParam,
+              isRetry
+            );
+            if (recoveryPaused) return;
+          }
+
           this.engine.destroy('error', error.message, errorLogItem);
           return;
         }
@@ -456,16 +490,18 @@ class WorkflowWorker {
           this.engine.workflow.settings?.assistedRecovery &&
           isRecoverableWorkflowError(error)
         ) {
-          await this.engine.pauseForRecovery(
+          const recoveryPaused = await this.engine.pauseForRecovery(
             error.message,
             {
               ...errorLogItem,
               block,
               error,
             },
-            this
+            this,
+            execParam,
+            isRetry
           );
-          return;
+          if (recoveryPaused) return;
         }
 
         this.engine.destroy('error', error.message, errorLogItem);
