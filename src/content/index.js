@@ -11,6 +11,7 @@ import handleSelector, {
   getDocumentCtx,
   queryElements,
 } from './handleSelector';
+import showRecoveryOverlay from './recoveryOverlay';
 import shortcutListener from './services/shortcutListener';
 import showExecutedBlock from './showExecutedBlock';
 // import elementObserver from './elementObserver';
@@ -290,6 +291,8 @@ async function messageListener({ data, source }) {
         return Boolean(window.initPaletteParams);
       case 'content-script-exists':
         return true;
+      case 'automa:show-recovery-menu':
+        return showRecoveryOverlay(data.recovery || data.data || data);
       case 'automa-element-selector': {
         return elementSelectorInstance();
       }

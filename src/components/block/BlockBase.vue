@@ -68,6 +68,15 @@
       </div>
     </div>
     <slot name="prepend" />
+    <div
+      v-if="siteSegment"
+      class="site-segment-label"
+      :title="siteSegmentTitle"
+    >
+      <v-remixicon name="riGlobalLine" size="16" />
+      <span class="site-segment-domain">{{ siteSegment.domain }}</span>
+      <span class="site-segment-row">Row {{ siteSegment.row }}</span>
+    </div>
     <ui-card :class="contentClass" class="block-base__content relative z-10">
       <v-remixicon
         v-if="workflow?.data?.value.testingMode"
@@ -85,7 +94,7 @@
 </template>
 <script setup>
 import { excludeGroupBlocks } from '@/utils/shared';
-import { inject, ref } from 'vue';
+import { computed, inject, ref } from 'vue';
 
 const props = defineProps({
   contentClass: {
@@ -110,6 +119,17 @@ defineEmits(['delete', 'edit', 'update', 'settings']);
 const isCopied = ref(false);
 const workflow = inject('workflow', null);
 const workflowUtils = inject('workflow-utils', null);
+const siteSegment = computed(() => {
+  const segment = props.data?.$siteSegment;
+  if (!segment?.isEntry || !segment.domain) return null;
+
+  return segment;
+});
+const siteSegmentTitle = computed(() => {
+  if (!siteSegment.value) return '';
+
+  return `Site row: ${siteSegment.value.domain}`;
+});
 
 function insertToClipboard() {
   navigator.clipboard.writeText(props.blockId);
@@ -120,8 +140,11 @@ function insertToClipboard() {
   }, 1000);
 }
 function handleStartDrag(event) {
+  const data = { ...(props.data || {}) };
+  delete data.$siteSegment;
+
   const payload = {
-    data: props.data,
+    data,
     fromBlockBasic: true,
     blockId: props.blockId,
     id: props.blockData.details.id,
@@ -143,5 +166,38 @@ function runWorkflow() {
     padding-right: 6px;
     @apply focus:ring-0 py-1 hover:text-primary;
   }
+}
+.site-segment-label {
+  position: absolute;
+  left: 0;
+  top: -36px;
+  z-index: 20;
+  display: inline-flex;
+  max-width: 240px;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid rgba(37, 99, 235, 0.28);
+  border-radius: 8px;
+  background: #2563eb;
+  color: #ffffff;
+  box-shadow: 0 10px 24px rgba(37, 99, 235, 0.24);
+  padding: 6px 8px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 16px;
+}
+.site-segment-domain {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.site-segment-row {
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.18);
+  padding: 1px 5px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
 }
 </style>

@@ -30,6 +30,7 @@ export default async function (options = {}) {
         data: { url: activeTab.url },
       });
 
+      await browser.tabs.update(activeTab.id, { active: true });
       await browser.windows.update(activeTab.windowId, { focused: true });
     }
 

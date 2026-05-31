@@ -176,6 +176,7 @@
             v-if="state.workflowConverted"
             :id="route.params.id"
             :data="editorData"
+            :segments="workflowSegments"
             :disabled="isTeamWorkflow && !haveEditAccess"
             :class="{ 'animate-blocks': state.animateBlocks }"
             class="workflow-editor focus:outline-none"
@@ -341,6 +342,11 @@ import { getBlocks } from '@/utils/getSharedData';
 import { debounce, getActiveTab, parseJSON, throttle } from '@/utils/helper';
 import { excludeGroupBlocks } from '@/utils/shared';
 import { getWorkflowPermissions } from '@/utils/workflowData';
+import {
+  getStoredWorkflowSegments,
+  getWorkflowSegments,
+  inferWorkflowSegments,
+} from '@/utils/workflowSegments';
 import { registerWorkflowTrigger } from '@/utils/workflowTrigger';
 import functions from '@/workflowEngine/templating/templatingFunctions';
 import { useHead } from '@vueuse/head';
@@ -594,9 +600,9 @@ const editorData = computed(() => {
 
   return workflow.value.drawflow;
 });
+const workflowSegments = computed(() => getWorkflowSegments(workflow.value));
 
 const updateBlockData = debounce((data) => {
-  console.log('🚀 ~ updateBlockData ~ data:', data);
   if (!haveEditAccess.value) return;
   const node = editor.value.getNode.value(editState.blockData.blockId);
   const dataCopy = JSON.parse(JSON.stringify(data));
@@ -613,7 +619,9 @@ const updateBlockData = debounce((data) => {
       autocompleteId = editState.blockData.itemId;
     }
   } else {
-    node.data = dataCopy;
+    node.data = node.data?.$siteSegment
+      ? { ...dataCopy, $siteSegment: node.data.$siteSegment }
+      : dataCopy;
     autocompleteId = editState.blockData.blockId;
   }
 
@@ -864,6 +872,12 @@ function clearBlockFolderModal() {
     icon: 'mdiPackageVariantClosed',
   });
 }
+function sanitizeNodeData(data = {}) {
+  const safeData = { ...(data || {}) };
+  delete safeData.$siteSegment;
+
+  return safeData;
+}
 async function saveBlockToFolder() {
   try {
     const seen = new Set();
@@ -874,7 +888,9 @@ async function saveBlockToFolder() {
       if (seen.has(node.id)) return acc;
 
       const { label, data, position, id, type } = node;
-      acc.push(cloneDeep({ label, data, position, id, type }));
+      acc.push(
+        cloneDeep({ label, data: sanitizeNodeData(data), position, id, type })
+      );
       seen.add(node.id);
 
       return acc;
@@ -1059,6 +1075,71 @@ function onNodesChange(changes) {
     commandManager.add(command);
   }
 }
+function buildSegmentIndexByBlockId() {
+  const indexByBlockId = new Map();
+
+  workflowSegments.value.forEach((segment, index) => {
+    const blockIds = Array.isArray(segment.blockIds) ? segment.blockIds : [];
+    const ids = [segment.entryBlockId, ...blockIds].filter(Boolean);
+
+    ids.forEach((blockId) => {
+      indexByBlockId.set(blockId, index);
+    });
+  });
+
+  return indexByBlockId;
+}
+function buildSegmentRowLayout(graph) {
+  const segments = workflowSegments.value;
+  if (segments.length <= 1) return null;
+
+  const indexByBlockId = buildSegmentIndexByBlockId();
+  const segmentStats = new Map();
+
+  graph.nodes().forEach((nodeId) => {
+    const segmentIndex = indexByBlockId.get(nodeId);
+    if (segmentIndex == null) return;
+
+    const graphNode = graph.node(nodeId);
+    if (!graphNode) return;
+
+    const current = segmentStats.get(segmentIndex) || {
+      minY: graphNode.y,
+      maxY: graphNode.y,
+    };
+
+    segmentStats.set(segmentIndex, {
+      minY: Math.min(current.minY, graphNode.y),
+      maxY: Math.max(current.maxY, graphNode.y),
+    });
+  });
+
+  const rowOffsetByIndex = new Map();
+  let nextRowY = 140;
+
+  segments.forEach((_, index) => {
+    const stats = segmentStats.get(index);
+    if (!stats) return;
+
+    rowOffsetByIndex.set(index, nextRowY - stats.minY);
+    nextRowY += Math.max(stats.maxY - stats.minY + 210, 260);
+  });
+
+  return {
+    indexByBlockId,
+    rowOffsetByIndex,
+  };
+}
+function getSegmentRowY(nodeId, y, rowLayout) {
+  if (!rowLayout) return y;
+
+  const segmentIndex = rowLayout.indexByBlockId.get(nodeId);
+  if (segmentIndex == null) return y;
+
+  const offset = rowLayout.rowOffsetByIndex.get(segmentIndex);
+
+  return offset == null ? y : y + offset;
+}
 function autoAlign() {
   state.animateBlocks = true;
 
@@ -1086,12 +1167,14 @@ function autoAlign() {
   });
 
   dagre.layout(graph);
+  const segmentRowLayout = buildSegmentRowLayout(graph);
   const nodeChanges = [];
   graph.nodes().forEach((nodeId) => {
     const graphNode = graph.node(nodeId);
     if (!graphNode) return;
 
-    const { x, y } = graphNode;
+    const { x } = graphNode;
+    const y = getSegmentRowY(nodeId, graphNode.y, segmentRowLayout);
 
     if (editorCommands.state.nodes[nodeId]) {
       editorCommands.state.nodes[nodeId].position = { x, y };
@@ -1197,6 +1280,20 @@ async function updateWorkflow(data) {
     console.error(error);
   }
 }
+async function ensureWorkflowSegments() {
+  if (isPackage || !haveEditAccess.value) return;
+  if (getStoredWorkflowSegments(workflow.value).length > 0) return;
+
+  const segments = inferWorkflowSegments(workflow.value);
+  if (segments.length === 0) return;
+
+  await updateWorkflow({
+    settings: {
+      ...workflow.value.settings,
+      segments,
+    },
+  });
+}
 function onActionUpdated({ data, changedIndicator }) {
   state.dataChanged = changedIndicator;
 
@@ -1280,6 +1377,7 @@ function onEditorInit(instance) {
 
   const { blockId } = route.query;
   if (blockId) goToBlock(blockId);
+  ensureWorkflowSegments();
 }
 function clearHighlightedElements() {
   const elements = document.querySelectorAll(
@@ -1439,7 +1537,7 @@ function copyElements(nodes, edges, initialPos) {
     }
 
     const copyNode = cloneDeep({
-      data,
+      data: sanitizeNodeData(data),
       label,
       id: newNodeId,
       selected: true,

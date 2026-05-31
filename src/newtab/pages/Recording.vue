@@ -123,14 +123,31 @@ function generateDrawflow(startBlock, startBlockData) {
     });
   }
 
-  const position = {
+  const segmentEntries = new Map();
+  const recordedSegments = Array.isArray(state.segments) ? state.segments : [];
+  recordedSegments.forEach((segment, index) => {
+    if (typeof segment.entryFlowIndex !== 'number') return;
+
+    segmentEntries.set(segment.entryFlowIndex, index);
+  });
+  const shouldUseSiteRows = recordedSegments.length > 1;
+  const basePosition = {
     y: startBlockData ? startBlockData.position.y + 120 : 300,
     x: startBlockData ? startBlockData.position.x + 280 : 320,
   };
+  const position = { ...basePosition };
   const groups = {};
   let groupFlowIndexes = [];
+  let segmentColumn = 0;
 
   state.flows.forEach((block, index) => {
+    const nextSegmentRow = segmentEntries.get(index);
+    if (shouldUseSiteRows && nextSegmentRow != null) {
+      segmentColumn = 0;
+      position.x = basePosition.x;
+      position.y = basePosition.y + nextSegmentRow * 220;
+    }
+
     if (block.groupId) {
       if (!groups[block.groupId]) groups[block.groupId] = [];
       groupFlowIndexes.push(index);
@@ -178,10 +195,15 @@ function generateDrawflow(startBlock, startBlockData) {
       });
     }
 
-    const inNewRow = (index + 1) % 5 === 0;
+    if (shouldUseSiteRows) {
+      segmentColumn += 1;
+      position.x = basePosition.x + segmentColumn * 280;
+    } else {
+      const inNewRow = (index + 1) % 5 === 0;
 
-    position.x = inNewRow ? 50 : position.x + 280;
-    position.y = inNewRow ? position.y + 150 : position.y;
+      position.x = inNewRow ? 50 : position.x + 280;
+      position.y = inNewRow ? position.y + 150 : position.y;
+    }
 
     nodes.push(node);
   });

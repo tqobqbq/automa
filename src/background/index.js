@@ -211,6 +211,9 @@ message.on('workflow:resume', ({ id, nextBlock }) => {
   if (!id) return;
   BackgroundWorkflowUtils.instance.resumeExecution(id, nextBlock);
 });
+message.on('workflow:append-record-from-recovery', (recovery) =>
+  BackgroundWorkflowUtils.instance.appendRecordFromRecovery(recovery)
+);
 message.on('workflow:breakpoint', (id) => {
   if (!id) return;
   BackgroundWorkflowUtils.instance.updateExecutionState(id, {

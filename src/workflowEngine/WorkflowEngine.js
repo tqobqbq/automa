@@ -13,6 +13,7 @@ import {
 } from '@/utils/workflowRecovery';
 import cloneDeep from 'lodash.clonedeep';
 import { nanoid } from 'nanoid';
+import injectContentScript from './injectContentScript';
 import WorkflowWorker from './WorkflowWorker';
 
 let blocks = getBlocks();
@@ -533,11 +534,30 @@ class WorkflowEngine {
       return false;
     }
 
+    this.showRecoveryOverlay(recovery);
+
     if (recovery.segment?.id) {
       this.segmentRecoveries.push(recovery);
     }
 
     return true;
+  }
+
+  async showRecoveryOverlay(recovery) {
+    if (this.isDestroyed) return;
+
+    const tabId = recovery?.activeTab?.id;
+    if (!tabId) return;
+
+    try {
+      await injectContentScript(tabId);
+      await BrowserAPIService.tabs.sendMessage(tabId, {
+        type: 'automa:show-recovery-menu',
+        recovery,
+      });
+    } catch (error) {
+      console.error('Failed to show recovery menu', error);
+    }
   }
 
   async continueAfterSegmentRecovery() {

@@ -1,4 +1,5 @@
 import { IS_FIREFOX } from '@/common/utils/constant';
+import startRecordWorkflow from '@/newtab/utils/startRecordWorkflow';
 import browser from 'webextension-polyfill';
 import BackgroundOffscreen from './BackgroundOffscreen';
 
@@ -118,6 +119,41 @@ class BackgroundWorkflowUtils {
       id: stateId,
       nextBlock,
     });
+  }
+
+  /**
+   * Start append-recording from a preserved recovery tab
+   * @param {object} recovery
+   * @returns {Promise<boolean>}
+   */
+  async appendRecordFromRecovery(recovery) {
+    if (!recovery?.workflowId || !recovery?.failedBlock?.id) return false;
+
+    const workflow = await this.constructor.getWorkflow(recovery.workflowId);
+    const sourceBlock = workflow?.drawflow?.nodes?.find(
+      (node) => node.id === recovery.failedBlock.id
+    );
+    if (!sourceBlock) return false;
+
+    const output = recovery.failedBlock.output?.startsWith(
+      `${sourceBlock.id}-output-`
+    )
+      ? recovery.failedBlock.output
+      : `${sourceBlock.id}-output-${recovery.failedBlock.output || 1}`;
+
+    const started = await startRecordWorkflow({
+      workflowId: recovery.workflowId,
+      name: recovery.workflowName || workflow.name,
+      activeTabId: recovery.activeTab?.id,
+      requireActiveTabId: Boolean(recovery.activeTab?.id),
+      recovery,
+      connectFrom: {
+        id: sourceBlock.id,
+        output,
+      },
+    });
+
+    return started;
   }
 
   /**

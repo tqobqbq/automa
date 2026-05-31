@@ -116,6 +116,10 @@ const props = defineProps({
     type: Object,
     default: () => ({}),
   },
+  segments: {
+    type: Array,
+    default: () => [],
+  },
   editorControls: {
     type: Boolean,
     default: true,
@@ -275,14 +279,101 @@ function onMousedown(event) {
     event.preventDefault();
   }
 }
+function getSegmentDomain(segment) {
+  try {
+    return new URL(segment.url).hostname;
+  } catch {
+    return segment.name || '';
+  }
+}
+function buildSegmentLookup() {
+  const lookup = new Map();
+  const segments = Array.isArray(props.segments) ? props.segments : [];
+
+  segments.forEach((segment, index) => {
+    const blockIds = Array.isArray(segment.blockIds) ? segment.blockIds : [];
+    const ids = new Set([segment.entryBlockId, ...blockIds].filter(Boolean));
+    const domain = getSegmentDomain(segment);
+
+    ids.forEach((blockId) => {
+      lookup.set(blockId, {
+        id: segment.id,
+        name: segment.name || domain,
+        domain,
+        row: index + 1,
+        isEntry: blockId === segment.entryBlockId,
+      });
+    });
+  });
+
+  return lookup;
+}
+function buildSegmentRowOffsets(segmentLookup) {
+  if (!Array.isArray(props.segments) || props.segments.length <= 1) {
+    return new Map();
+  }
+
+  const statsByRow = new Map();
+  props.data?.nodes?.forEach((node) => {
+    const segment = segmentLookup.get(node.id);
+    if (!segment) return;
+
+    const y = node.position?.y || 0;
+    const current = statsByRow.get(segment.row) || { minY: y, maxY: y };
+    statsByRow.set(segment.row, {
+      minY: Math.min(current.minY, y),
+      maxY: Math.max(current.maxY, y),
+    });
+  });
+
+  const offsets = new Map();
+  let nextRowY = 320;
+
+  props.segments.forEach((_, index) => {
+    const row = index + 1;
+    const stats = statsByRow.get(row);
+    if (!stats) return;
+
+    offsets.set(row, nextRowY - stats.minY);
+    nextRowY += Math.max(stats.maxY - stats.minY + 220, 280);
+  });
+
+  return offsets;
+}
+function withSegmentData(node, segmentLookup, rowOffsets) {
+  const data = { ...(node.data || {}) };
+  delete data.$siteSegment;
+
+  const segment = segmentLookup.get(node.id);
+  const offset = segment ? rowOffsets.get(segment.row) : null;
+  const position =
+    offset == null
+      ? node.position
+      : {
+          ...node.position,
+          y: (node.position?.y || 0) + offset,
+        };
+
+  return {
+    ...node,
+    position,
+    data: segment ? { ...data, $siteSegment: segment } : data,
+    events: {},
+  };
+}
 function applyFlowData() {
   if (settings.snapToGrid) {
     editor.snapToGrid.value = true;
     editor.snapGrid.value = Object.values(settings.snapGrid);
   }
 
+  const segmentLookup = buildSegmentLookup();
+  const rowOffsets = buildSegmentRowOffsets(segmentLookup);
+
   editor.setNodes(
-    props.data?.nodes?.map((node) => ({ ...node, events: {} })) || []
+    props.data?.nodes?.map((node) =>
+      withSegmentData(node, segmentLookup, rowOffsets)
+    ) || []
   );
   editor.setEdges(props.data?.edges || []);
   editor.setViewport({

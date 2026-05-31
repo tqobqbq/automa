@@ -469,9 +469,19 @@ function updateWorkflowDescription(value) {
   updateWorkflow(payload);
   state.showEditDescription = false;
 }
+function sanitizeNodeData(data = {}) {
+  const safeData = { ...(data || {}) };
+  delete safeData.$siteSegment;
+
+  return safeData;
+}
 async function saveWorkflow() {
   try {
     const flow = props.editor.toObject();
+    flow.nodes = flow.nodes.map((node) => ({
+      ...node,
+      data: sanitizeNodeData(node.data),
+    }));
     flow.edges = flow.edges.map((edge) => {
       delete edge.sourceNode;
       delete edge.targetNode;
