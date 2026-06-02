@@ -177,18 +177,25 @@ class WorkflowEngine {
             lastFocusedWindow: true,
           });
           if (activeTab) {
-            const result = await BrowserAPIService.tabs.sendMessage(
-              activeTab.id,
-              {
-                type: 'input-workflow-params',
-                data: {
-                  workflow: this.workflow,
-                  params: triggerBlock.data.parameters,
-                },
-              }
-            );
+            try {
+              const result = await BrowserAPIService.tabs.sendMessage(
+                activeTab.id,
+                {
+                  type: 'input-workflow-params',
+                  data: {
+                    workflow: this.workflow,
+                    params: triggerBlock.data.parameters,
+                  },
+                }
+              );
 
-            if (result) return;
+              if (result) return;
+            } catch (error) {
+              console.error(
+                'Failed to show workflow params in active tab',
+                error
+              );
+            }
           }
         }
 

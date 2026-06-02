@@ -6,6 +6,15 @@ import Browser from 'webextension-polyfill';
 
 const OFFSCREEN_URL = Browser.runtime.getURL('/offscreen.html');
 
+function isMissingReceiverError(error) {
+  const message = error?.message || '';
+
+  return (
+    message.includes('Could not establish connection') ||
+    message.includes('Receiving end does not exist')
+  );
+}
+
 class BackgroundOffscreen {
   /** @type {BackgroundOffscreen} */
   static #_instance;
@@ -78,7 +87,20 @@ class BackgroundOffscreen {
   async sendMessage(name, data) {
     await this.#ensureDocument();
 
-    return this.#messageListener.sendMessage(name, data);
+    let lastError;
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      try {
+        return await this.#messageListener.sendMessage(name, data);
+      } catch (error) {
+        lastError = error;
+        if (!isMissingReceiverError(error)) throw error;
+
+        await sleep(250 * (attempt + 1));
+        await this.#ensureDocument();
+      }
+    }
+
+    throw lastError;
   }
 }
 

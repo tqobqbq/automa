@@ -21,7 +21,9 @@ import BackgroundOffscreen from './BackgroundOffscreen';
 import BackgroundUtils from './BackgroundUtils';
 import BackgroundWorkflowUtils from './BackgroundWorkflowUtils';
 
-BackgroundOffscreen.instance.sendMessage('halo');
+BackgroundOffscreen.instance.sendMessage('halo').catch((error) => {
+  console.error('Failed to initialize offscreen document', error);
+});
 
 browser.alarms.onAlarm.addListener(BackgroundEventsListeners.onAlarms);
 
@@ -158,7 +160,7 @@ message.on('workflow:execute', async (workflowData, sender) => {
     workflowData.options.tabId = sender.tab.id;
   }
 
-  BackgroundWorkflowUtils.instance.executeWorkflow(
+  return BackgroundWorkflowUtils.instance.executeWorkflow(
     workflowData,
     workflowData?.options || {}
   );
