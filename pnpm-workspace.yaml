@@ -1,0 +1,11 @@
+packages:
+  - '.'
+
+allowBuilds:
+  core-js: true
+  simple-git-hooks: false
+  vue-demi: true
+
+peerDependencyRules:
+  allowedVersions:
+    tailwindcss: '>=3.0.0'

@@ -2,6 +2,20 @@ import browser from 'webextension-polyfill';
 
 const isMV2 = browser.runtime.getManifest().manifest_version === 2;
 
+function canInjectRecordScript(tab) {
+  const url = tab?.url || '';
+  if (!url.startsWith('http')) return false;
+
+  try {
+    const { hostname } = new URL(url);
+    return !['chrome.google.com', 'chromewebstore.google.com'].includes(
+      hostname
+    );
+  } catch {
+    return false;
+  }
+}
+
 export default async function (options = {}) {
   try {
     const flows = [];
@@ -23,7 +37,7 @@ export default async function (options = {}) {
       });
     }
 
-    if (activeTab && activeTab.url.startsWith('http')) {
+    if (activeTab?.url?.startsWith('http')) {
       flows.push({
         id: 'new-tab',
         description: activeTab.url,
@@ -53,24 +67,30 @@ export default async function (options = {}) {
 
     const tabs = await browser.tabs.query({});
     for (const tab of tabs) {
-      if (
-        tab.url.startsWith('http') &&
-        !tab.url.includes('chrome.google.com')
-      ) {
-        if (isMV2) {
-          await browser.tabs.executeScript(tab.id, {
-            allFrames: true,
-            runAt: 'document_start',
-            file: './recordWorkflow.bundle.js',
-          });
-        } else {
-          await browser.scripting.executeScript({
-            target: {
-              tabId: tab.id,
+      if (canInjectRecordScript(tab)) {
+        try {
+          if (isMV2) {
+            await browser.tabs.executeScript(tab.id, {
               allFrames: true,
-            },
-            files: ['recordWorkflow.bundle.js'],
-          });
+              runAt: 'document_start',
+              file: './recordWorkflow.bundle.js',
+            });
+          } else {
+            await browser.scripting.executeScript({
+              target: {
+                tabId: tab.id,
+                allFrames: true,
+              },
+              files: ['recordWorkflow.bundle.js'],
+            });
+          }
+        } catch (error) {
+          console.error(
+            'Failed to inject record script',
+            tab.id,
+            tab.url,
+            error
+          );
         }
       }
     }

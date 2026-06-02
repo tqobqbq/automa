@@ -6,10 +6,17 @@ const { VueLoaderPlugin } = require('vue-loader');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
-const TerserPlugin = require('terser-webpack-plugin');
 const env = require('./utils/env');
 
 const ASSET_PATH = process.env.ASSET_PATH || '/';
+const selectedEntries = (process.env.WEBPACK_ENTRY || '')
+  .split(',')
+  .map((entry) => entry.trim())
+  .filter(Boolean);
+const hasSelectedEntries = selectedEntries.length > 0;
+const isEntryEnabled = (entry) =>
+  !hasSelectedEntries || selectedEntries.includes(entry);
+const chunkPrefix = process.env.WEBPACK_CHUNK_PREFIX || '';
 
 const alias = {
   '@': path.resolve(__dirname, 'src/'),
@@ -39,6 +46,8 @@ if (fileSystem.existsSync(secretsPath)) {
 
 const options = {
   mode: process.env.NODE_ENV || 'development',
+  cache: false,
+  parallelism: 1,
   entry: {
     sandbox: path.join(__dirname, 'src', 'sandbox', 'index.js'),
     execute: path.join(__dirname, 'src', 'execute', 'index.js'),
@@ -83,6 +92,7 @@ const options = {
   output: {
     path: path.resolve(__dirname, 'build'),
     filename: '[name].bundle.js',
+    chunkFilename: `${chunkPrefix}[name].bundle.js`,
     publicPath: ASSET_PATH,
   },
   module: {
@@ -142,16 +152,22 @@ const options = {
       .concat(['.js', '.vue', '.css']),
   },
   plugins: [
-    new MiniCssExtractPlugin(),
+    new MiniCssExtractPlugin({
+      chunkFilename: `${chunkPrefix}[id].css`,
+      filename: '[name].css',
+    }),
     new VueLoaderPlugin(),
     new webpack.DefinePlugin({
       BROWSER_TYPE: JSON.stringify(env.BROWSER),
     }),
-    new webpack.ProgressPlugin(),
-    // clean the build folder
-    new CleanWebpackPlugin({
-      verbose: false,
-    }),
+    ...(process.env.WEBPACK_SKIP_CLEAN
+      ? []
+      : [
+          // clean the build folder
+          new CleanWebpackPlugin({
+            verbose: false,
+          }),
+        ]),
     // expose and write the allowed env vars on the compiled bundle
     new webpack.EnvironmentPlugin(['NODE_ENV']),
     new CopyWebpackPlugin({
@@ -198,42 +214,66 @@ const options = {
         },
       ],
     }),
-    new HtmlWebpackPlugin({
-      template: path.join(__dirname, 'src', 'newtab', 'index.html'),
-      filename: 'newtab.html',
-      chunks: ['newtab'],
-      cache: false,
-    }),
-    new HtmlWebpackPlugin({
-      template: path.join(__dirname, 'src', 'sandbox', 'index.html'),
-      filename: 'sandbox.html',
-      chunks: ['sandbox'],
-      cache: false,
-    }),
-    new HtmlWebpackPlugin({
-      template: path.join(__dirname, 'src', 'execute', 'index.html'),
-      filename: 'execute.html',
-      chunks: ['execute'],
-      cache: false,
-    }),
-    new HtmlWebpackPlugin({
-      template: path.join(__dirname, 'src', 'popup', 'index.html'),
-      filename: 'popup.html',
-      chunks: ['popup'],
-      cache: false,
-    }),
-    new HtmlWebpackPlugin({
-      template: path.join(__dirname, 'src', 'params', 'index.html'),
-      filename: 'params.html',
-      chunks: ['params'],
-      cache: false,
-    }),
-    new HtmlWebpackPlugin({
-      template: path.join(__dirname, 'src', 'offscreen', 'index.html'),
-      filename: 'offscreen.html',
-      chunks: ['offscreen'],
-      cache: false,
-    }),
+    ...(isEntryEnabled('newtab')
+      ? [
+          new HtmlWebpackPlugin({
+            template: path.join(__dirname, 'src', 'newtab', 'index.html'),
+            filename: 'newtab.html',
+            chunks: ['newtab'],
+            cache: false,
+          }),
+        ]
+      : []),
+    ...(isEntryEnabled('sandbox')
+      ? [
+          new HtmlWebpackPlugin({
+            template: path.join(__dirname, 'src', 'sandbox', 'index.html'),
+            filename: 'sandbox.html',
+            chunks: ['sandbox'],
+            cache: false,
+          }),
+        ]
+      : []),
+    ...(isEntryEnabled('execute')
+      ? [
+          new HtmlWebpackPlugin({
+            template: path.join(__dirname, 'src', 'execute', 'index.html'),
+            filename: 'execute.html',
+            chunks: ['execute'],
+            cache: false,
+          }),
+        ]
+      : []),
+    ...(isEntryEnabled('popup')
+      ? [
+          new HtmlWebpackPlugin({
+            template: path.join(__dirname, 'src', 'popup', 'index.html'),
+            filename: 'popup.html',
+            chunks: ['popup'],
+            cache: false,
+          }),
+        ]
+      : []),
+    ...(isEntryEnabled('params')
+      ? [
+          new HtmlWebpackPlugin({
+            template: path.join(__dirname, 'src', 'params', 'index.html'),
+            filename: 'params.html',
+            chunks: ['params'],
+            cache: false,
+          }),
+        ]
+      : []),
+    ...(isEntryEnabled('offscreen')
+      ? [
+          new HtmlWebpackPlugin({
+            template: path.join(__dirname, 'src', 'offscreen', 'index.html'),
+            filename: 'offscreen.html',
+            chunks: ['offscreen'],
+            cache: false,
+          }),
+        ]
+      : []),
     new webpack.DefinePlugin({
       __VUE_OPTIONS_API__: true,
       __VUE_PROD_DEVTOOLS__: false,
@@ -250,16 +290,18 @@ const options = {
   },
 };
 
+if (hasSelectedEntries) {
+  options.entry = selectedEntries.reduce((entries, entry) => {
+    if (options.entry[entry]) entries[entry] = options.entry[entry];
+    return entries;
+  }, {});
+}
+
 if (env.NODE_ENV === 'development') {
   options.devtool = 'cheap-module-source-map';
 } else {
   options.optimization = {
-    minimize: true,
-    minimizer: [
-      new TerserPlugin({
-        extractComments: false,
-      }),
-    ],
+    minimize: false,
   };
 }
 

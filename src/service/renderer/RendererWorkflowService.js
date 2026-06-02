@@ -14,7 +14,7 @@ class RendererWorkflowService {
 
     return MessageListener.sendMessage(
       'workflow:execute',
-      { ...workflowData, options },
+      { ...clonedWorkflowData, options },
       'background'
     );
   }
