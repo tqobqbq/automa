@@ -207,13 +207,16 @@ async function deleteWorkflowHost() {
     },
   });
 }
-function executeCurrWorkflow() {
+async function executeCurrWorkflow() {
   const payload = {
     ...workflow.value,
     id: workflowId,
   };
 
-  RendererWorkflowService.executeWorkflow(payload);
+  const result = await RendererWorkflowService.executeWorkflow(payload);
+  if (result?.ok === false) {
+    console.error(result.error || 'Failed to execute workflow');
+  }
 }
 async function retrieveTriggerText() {
   const triggerBlock = findTriggerBlock(workflow.value.drawflow);

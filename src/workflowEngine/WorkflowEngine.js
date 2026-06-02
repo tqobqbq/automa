@@ -134,18 +134,17 @@ class WorkflowEngine {
 
   async init() {
     try {
-      if (this.workflow.isDisabled) return;
+      if (this.workflow.isDisabled) {
+        return { ok: false, id: this.id, status: 'disabled' };
+      }
 
       if (!this.states) {
-        console.error(`"${this.workflow.name}" workflow doesn't have states`);
-        this.destroy('error');
-        return;
+        throw new Error(`"${this.workflow.name}" workflow doesn't have states`);
       }
 
       const { nodes, edges } = this.workflow.drawflow;
       if (!nodes || nodes.length === 0) {
-        console.error(`${this.workflow.name} doesn't have blocks`);
-        return;
+        throw new Error(`${this.workflow.name} doesn't have blocks`);
       }
 
       const triggerBlock = nodes.find((node) => {
@@ -154,8 +153,7 @@ class WorkflowEngine {
         return node.label === 'trigger';
       });
       if (!triggerBlock) {
-        console.error(`${this.workflow.name} doesn't have a trigger block`);
-        return;
+        throw new Error(`${this.workflow.name} doesn't have a trigger block`);
       }
 
       if (!this.workflow.settings) {
@@ -189,7 +187,9 @@ class WorkflowEngine {
                 }
               );
 
-              if (result) return;
+              if (result) {
+                return { ok: true, id: this.id, status: 'waiting-for-params' };
+              }
             } catch (error) {
               console.error(
                 'Failed to show workflow params in active tab',
@@ -250,7 +250,7 @@ class WorkflowEngine {
             ),
           });
         }
-        return;
+        return { ok: true, id: this.id, status: 'waiting-for-params' };
       }
 
       this.triggerBlockId = triggerBlock.id;
@@ -359,8 +359,15 @@ class WorkflowEngine {
       });
 
       this.addWorker({ blockId: triggerBlock.id });
+
+      return { ok: true, id: this.id, status: 'running' };
     } catch (error) {
       console.error('WorkflowEngine init error:', error);
+      if (this.startedTimestamp && !this.isDestroyed) {
+        await this.destroy('error', error.message);
+      }
+
+      throw error;
     }
   }
 
@@ -443,7 +450,7 @@ class WorkflowEngine {
       states: this.states,
       blocksHandler: this.blocksHandler,
     });
-    engine.init();
+    await engine.init();
 
     workflowQueue.splice(queueIndex, 1);
 

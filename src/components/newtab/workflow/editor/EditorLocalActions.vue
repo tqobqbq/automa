@@ -515,10 +515,13 @@ async function executeCurrWorkflow() {
     saveWorkflow();
   }
 
-  RendererWorkflowService.executeWorkflow({
+  const result = await RendererWorkflowService.executeWorkflow({
     ...props.workflow,
     isTesting: props.isDataChanged,
   });
+  if (result?.ok === false) {
+    toast.error(result.error || 'Failed to execute workflow');
+  }
 }
 async function setAsHostWorkflow(isHost) {
   if (!userStore.user) {

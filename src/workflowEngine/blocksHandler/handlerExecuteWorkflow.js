@@ -18,7 +18,6 @@ function workflowListener(workflow, options) {
     }
 
     const engine = new WorkflowEngine(workflow, options);
-    engine.init();
     engine.on('destroyed', ({ id, status, message }) => {
       options.events.onDestroyed(engine);
 
@@ -34,6 +33,10 @@ function workflowListener(workflow, options) {
     });
 
     options.events.onInit(engine);
+    engine.init().catch((error) => {
+      options.events.onDestroyed(engine);
+      reject(error);
+    });
   });
 }
 

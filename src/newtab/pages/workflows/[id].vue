@@ -757,9 +757,16 @@ async function executeFromBlock(blockId) {
       workflowOptions.tabId = tab.id;
     }
 
-    RendererWorkflowService.executeWorkflow(workflow.value, workflowOptions);
+    const result = await RendererWorkflowService.executeWorkflow(
+      workflow.value,
+      workflowOptions
+    );
+    if (result?.ok === false) {
+      toast.error(result.error || 'Failed to execute workflow');
+    }
   } catch (error) {
     console.error(error);
+    toast.error(error.message || 'Failed to execute workflow');
   }
 }
 function startRecording({ nodeId, handleId }) {

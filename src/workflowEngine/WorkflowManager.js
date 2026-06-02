@@ -47,10 +47,16 @@ class WorkflowManager {
     this.#state = new WorkflowState({ storage: workflowStateStorage });
   }
 
-  execute(workflowData, options) {
+  async execute(workflowData, options) {
     if (workflowData.testingMode) {
       for (const value of this.#state.states.values()) {
-        if (value.workflowId === workflowData.id) return null;
+        if (value.workflowId === workflowData.id) {
+          return {
+            ok: false,
+            status: 'already-running',
+            workflowId: workflowData.id,
+          };
+        }
       }
     }
 
@@ -62,7 +68,7 @@ class WorkflowManager {
       blocksHandler: blocksHandler(),
     });
 
-    engine.init();
+    const initResult = await engine.init();
     engine.on('destroyed', ({ id, status, history, blockDetail, ...rest }) => {
       if (status !== 'stopped') {
         BrowserAPIService.permissions
@@ -143,7 +149,12 @@ class WorkflowManager {
         console.error('Failed to get checkStatus:', error);
       });
 
-    return engine;
+    return {
+      ok: initResult?.ok ?? true,
+      executionId: engine.id,
+      status: initResult?.status || 'running',
+      workflowId: convertedWorkflow.id,
+    };
   }
 
   /**

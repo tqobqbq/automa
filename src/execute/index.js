@@ -56,10 +56,20 @@ function writeResult(text) {
         options: { checkParam: !hasVariables, data: { variables } },
       },
       'background'
-    ).then(() => {
-      setTimeout(window.close, 1000);
-    });
+    )
+      .then((result) => {
+        if (result?.ok === false) {
+          writeResult(result.error || 'Failed to execute workflow');
+          return;
+        }
+
+        setTimeout(window.close, 1000);
+      })
+      .catch((error) => {
+        writeResult(error.message || 'Failed to execute workflow');
+      });
   } catch (error) {
     console.error(error);
+    writeResult(error.message || 'Failed to execute workflow');
   }
 })();

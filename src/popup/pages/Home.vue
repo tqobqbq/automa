@@ -315,7 +315,15 @@ function togglePinWorkflow(workflow) {
 }
 async function executeWorkflow(workflow) {
   try {
-    await RendererWorkflowService.executeWorkflow(workflow, workflow.options);
+    const result = await RendererWorkflowService.executeWorkflow(
+      workflow,
+      workflow.options
+    );
+    if (result?.ok === false) {
+      console.error(result.error || 'Failed to execute workflow');
+      return;
+    }
+
     window.close();
   } catch (error) {
     console.error(error);

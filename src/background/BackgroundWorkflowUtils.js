@@ -176,15 +176,16 @@ class BackgroundWorkflowUtils {
   }
 
   async executeWorkflow(workflowData, options) {
-    if (workflowData.isDisabled) return;
+    if (workflowData.isDisabled) {
+      return { ok: false, status: 'disabled', workflowId: workflowData.id };
+    }
 
     if (IS_FIREFOX) {
       await this.#ensureWorkflowManager();
-      this.#workflowManager.execute(workflowData, options);
-      return;
+      return this.#workflowManager.execute(workflowData, options);
     }
 
-    await BackgroundOffscreen.instance.sendMessage('workflow:execute', {
+    return BackgroundOffscreen.instance.sendMessage('workflow:execute', {
       workflow: workflowData,
       options,
     });
