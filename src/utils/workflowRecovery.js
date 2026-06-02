@@ -2,13 +2,17 @@ export const RECOVERY_STATUS = 'paused-recovery';
 
 const RECOVERABLE_ERROR_MESSAGES = new Set(['element-not-found']);
 
-export function isRecoverableWorkflowError(error) {
+export function isRecoverableWorkflowError(error, context = {}) {
   if (!error) return false;
   if (error.recoverable === true) return true;
   if (RECOVERABLE_ERROR_MESSAGES.has(error.message)) return true;
 
   const selector = error.data?.selector || error.selector;
-  return Boolean(selector && error.message);
+  if (selector && error.message) return true;
+
+  return Boolean(
+    error.message && context.block?.id && context.worker?.activeTab?.id
+  );
 }
 
 export function getRecoverySourceOutput(block) {

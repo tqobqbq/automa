@@ -18,6 +18,10 @@ import WorkflowWorker from './WorkflowWorker';
 
 let blocks = getBlocks();
 
+function canShowRecoveryOverlay(tab) {
+  return Boolean(tab?.id && tab?.url?.startsWith('http'));
+}
+
 class WorkflowEngine {
   constructor(workflow, { states, logger, blocksHandler, isPopup, options }) {
     this.id = nanoid();
@@ -564,11 +568,34 @@ class WorkflowEngine {
     if (!tabId) return;
 
     try {
-      await injectContentScript(tabId);
-      await BrowserAPIService.tabs.sendMessage(tabId, {
-        type: 'automa:show-recovery-menu',
-        recovery,
-      });
+      const tab = await BrowserAPIService.tabs.get(tabId);
+      if (!canShowRecoveryOverlay(tab)) return;
+
+      if (!recovery.activeTab.url) recovery.activeTab.url = tab.url;
+      if (!recovery.activeTab.windowId) {
+        recovery.activeTab.windowId = tab.windowId;
+      }
+
+      const injected = await injectContentScript(tabId);
+      if (!injected) throw new Error('content-script-injection-failed');
+
+      for (let attempt = 0; attempt < 5; attempt += 1) {
+        try {
+          const shown = await BrowserAPIService.tabs.sendMessage(
+            tabId,
+            {
+              type: 'automa:show-recovery-menu',
+              recovery,
+            },
+            { frameId: 0 }
+          );
+          if (shown) return;
+        } catch (error) {
+          if (attempt >= 4) throw error;
+        }
+
+        await sleep(250 * (attempt + 1));
+      }
     } catch (error) {
       console.error('Failed to show recovery menu', error);
     }

@@ -499,7 +499,7 @@ class WorkflowWorker {
           delete this.engine.restartWorkersCount[this.id];
           if (
             this.engine.workflow.settings?.assistedRecovery !== false &&
-            isRecoverableWorkflowError(error)
+            isRecoverableWorkflowError(error, { block, worker: this })
           ) {
             const recoveryPaused = await this.engine.pauseForRecovery(
               error.message,
@@ -531,7 +531,7 @@ class WorkflowWorker {
       } else {
         if (
           this.engine.workflow.settings?.assistedRecovery !== false &&
-          isRecoverableWorkflowError(error)
+          isRecoverableWorkflowError(error, { block, worker: this })
         ) {
           const recoveryPaused = await this.engine.pauseForRecovery(
             error.message,
