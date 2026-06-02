@@ -105,7 +105,7 @@ import { computed, onMounted, reactive } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import { useToast } from 'vue-toastification';
-import browser from 'webextension-polyfill';
+import { getExtensionVersion } from '@/utils/manifest';
 
 const props = defineProps({
   isDataChanged: {
@@ -193,7 +193,7 @@ async function toggleSharePackage() {
         'name',
         'settings',
       ];
-      const payload = { extVersion: browser.runtime.getManifest().version };
+      const payload = { extVersion: getExtensionVersion() };
 
       keys.forEach((key) => {
         payload[key] = props.data[key];
@@ -243,7 +243,7 @@ async function updateSharedPackage() {
       'name',
       'settings',
     ];
-    const payload = { extVersion: browser.runtime.getManifest().version };
+    const payload = { extVersion: getExtensionVersion() };
 
     keys.forEach((key) => {
       payload[key] = props.data[key];

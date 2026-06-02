@@ -11,6 +11,7 @@ import deepmerge from 'lodash.merge';
 import { nanoid } from 'nanoid';
 import { defineStore } from 'pinia';
 import browser from 'webextension-polyfill';
+import { getExtensionVersion } from '@/utils/manifest';
 import { useUserStore } from './user';
 
 const defaultWorkflow = (data = null, options = {}) => {
@@ -61,7 +62,7 @@ const defaultWorkflow = (data = null, options = {}) => {
       insertDefaultColumn: false,
       defaultColumnName: 'column',
     },
-    version: browser.runtime.getManifest().version,
+    version: getExtensionVersion(),
     globalData: '{\n\t"key": "value"\n}',
   };
 

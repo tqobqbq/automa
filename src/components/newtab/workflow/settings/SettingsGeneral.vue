@@ -166,7 +166,6 @@ const toast = useToast();
 const permissions = useHasPermissions(['notifications']);
 
 const isFirefox = BROWSER_TYPE === 'firefox';
-// const isMV2 = browser.runtime.getManifest().manifest_version === 2;
 
 const browserType = BROWSER_TYPE;
 const onError = [

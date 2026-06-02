@@ -4,6 +4,7 @@ import { openDB } from 'idb';
 import deepmerge from 'lodash.merge';
 import { nanoid } from 'nanoid';
 import browser from 'webextension-polyfill';
+import { getExtensionVersion } from '@/utils/manifest';
 
 function initWebListener() {
   const listeners = {};
@@ -32,10 +33,7 @@ function sendMessageBack(type, payload = {}) {
 
 window.addEventListener('DOMContentLoaded', async () => {
   try {
-    document.body.setAttribute(
-      'data-atm-ext-installed',
-      browser.runtime.getManifest().version
-    );
+    document.body.setAttribute('data-atm-ext-installed', getExtensionVersion());
 
     const { workflows } = await browser.storage.local.get('workflows');
     const db = await openDB('automa', 1, {

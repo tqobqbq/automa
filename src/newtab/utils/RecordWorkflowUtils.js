@@ -1,7 +1,8 @@
 import browser from 'webextension-polyfill';
+import { isManifestV2 } from '@/utils/manifest';
 
 const validateUrl = (str) => str?.startsWith('http');
-const isMV2 = browser.runtime.getManifest().manifest_version === 2;
+const isMV2 = isManifestV2();
 const getHostname = (url) => {
   try {
     return new URL(url).hostname;

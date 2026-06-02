@@ -348,7 +348,7 @@ import { computed, reactive } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import { useToast } from 'vue-toastification';
-import browser from 'webextension-polyfill';
+import { getExtensionVersion } from '@/utils/manifest';
 
 const props = defineProps({
   isDataChanged: {
@@ -499,7 +499,7 @@ async function saveWorkflow() {
       {
         drawflow: flow,
         trigger: triggerBlock.data,
-        version: browser.runtime.getManifest().version,
+        version: getExtensionVersion(),
       },
       false
     );

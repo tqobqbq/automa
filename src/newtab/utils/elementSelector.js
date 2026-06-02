@@ -1,7 +1,8 @@
 import browser from 'webextension-polyfill';
 import { isXPath, sleep, getActiveTab } from '@/utils/helper';
+import { isManifestV2 } from '@/utils/manifest';
 
-const isMV2 = browser.runtime.getManifest().manifest_version === 2;
+const isMV2 = isManifestV2();
 
 async function makeDashboardFocus() {
   const [currentTab] = await browser.tabs.query({

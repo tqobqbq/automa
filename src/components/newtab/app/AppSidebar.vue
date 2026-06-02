@@ -102,6 +102,7 @@ import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import { useToast } from 'vue-toastification';
 import browser from 'webextension-polyfill';
+import { getExtensionVersion } from '@/utils/manifest';
 import { useUserStore } from '@/stores/user';
 import { useWorkflowStore } from '@/stores/workflow';
 import { useShortcut, getShortcut } from '@/composable/shortcut';
@@ -118,7 +119,7 @@ const router = useRouter();
 const userStore = useUserStore();
 const workflowStore = useWorkflowStore();
 
-const extensionVersion = browser.runtime.getManifest().version;
+const extensionVersion = getExtensionVersion();
 const tabs = [
   {
     id: 'workflow',

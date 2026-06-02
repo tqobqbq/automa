@@ -17,13 +17,8 @@ import automa from '@business';
 import browser from 'webextension-polyfill';
 import { registerWorkflowTrigger } from '../utils/workflowTrigger';
 import BackgroundEventsListeners from './BackgroundEventsListeners';
-import BackgroundOffscreen from './BackgroundOffscreen';
 import BackgroundUtils from './BackgroundUtils';
 import BackgroundWorkflowUtils from './BackgroundWorkflowUtils';
-
-BackgroundOffscreen.instance.sendMessage('halo').catch((error) => {
-  console.error('Failed to initialize offscreen document', error);
-});
 
 browser.alarms.onAlarm.addListener(BackgroundEventsListeners.onAlarms);
 

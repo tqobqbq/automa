@@ -52,12 +52,12 @@ import { useGroupTooltip } from '@/composable/groupTooltip';
 import { useStore } from '@/stores/main';
 import { communities } from '@/utils/shared';
 import { onMounted } from 'vue';
-import browser from 'webextension-polyfill';
+import { getExtensionVersion } from '@/utils/manifest';
 
 useGroupTooltip();
 const store = useStore();
 
-const extensionVersion = browser.runtime.getManifest().version;
+const extensionVersion = getExtensionVersion();
 const links = [
   ...communities,
   {

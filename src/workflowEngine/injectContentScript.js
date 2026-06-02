@@ -1,6 +1,7 @@
 import browser from 'webextension-polyfill';
+import { isManifestV2 } from '@/utils/manifest';
 
-const isMV2 = browser.runtime.getManifest().manifest_version === 2;
+const isMV2 = isManifestV2();
 
 async function contentScriptExist(tabId, frameId = 0) {
   try {

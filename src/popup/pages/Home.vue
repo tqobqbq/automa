@@ -198,8 +198,9 @@ import automa from '@business';
 import { computed, onMounted, shallowReactive, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import browser from 'webextension-polyfill';
+import { isManifestV2 } from '@/utils/manifest';
 
-const isMV2 = browser.runtime.getManifest().manifest_version === 2;
+const isMV2 = isManifestV2();
 
 const { t } = useI18n();
 const dialog = useDialog();

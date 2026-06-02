@@ -1,4 +1,5 @@
 import browser from 'webextension-polyfill';
+import { getExtensionVersion } from '@/utils/manifest';
 import { useWorkflowStore } from '@/stores/workflow';
 import { registerWorkflowTrigger } from './workflowTrigger';
 import {
@@ -171,7 +172,7 @@ const defaultValue = {
   dataColumns: [],
   description: '',
   drawflow: { nodes: [], edges: [] },
-  version: browser.runtime.getManifest().version,
+  version: getExtensionVersion(),
 };
 
 export function convertWorkflow(workflow, additionalKeys = []) {
@@ -189,7 +190,7 @@ export function convertWorkflow(workflow, additionalKeys = []) {
     ...additionalKeys,
   ];
   const content = {
-    extVersion: browser.runtime.getManifest().version,
+    extVersion: getExtensionVersion(),
   };
 
   keys.forEach((key) => {

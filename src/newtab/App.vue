@@ -100,6 +100,7 @@ import { reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 import browser from 'webextension-polyfill';
+import { getExtensionVersion } from '@/utils/manifest';
 
 const iconElement = document.createElement('link');
 iconElement.rel = 'icon';
@@ -131,7 +132,7 @@ const permissionState = reactive({
   showModal: false,
 });
 
-const currentVersion = browser.runtime.getManifest().version;
+const currentVersion = getExtensionVersion();
 const prevVersion = localStorage.getItem('ext-version') || '0.0.0';
 
 async function fetchUserData() {
