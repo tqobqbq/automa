@@ -247,6 +247,7 @@
             @ungroup="ungroupBlocks"
             @packageIo="addPackageIO"
             @recording="startRecording"
+            @execute="executeFromContextMenu"
             @copy="copySelectedElements"
             @paste="pasteCopiedElements"
             @saveBlock="initBlockFolder"
@@ -768,6 +769,10 @@ async function executeFromBlock(blockId) {
     console.error(error);
     toast.error(error.message || 'Failed to execute workflow');
   }
+}
+function executeFromContextMenu(ctxData) {
+  const blockId = ctxData?.nodes?.[0]?.id;
+  executeFromBlock(blockId);
 }
 function startRecording({ nodeId, handleId }) {
   if (state.dataChanged) {

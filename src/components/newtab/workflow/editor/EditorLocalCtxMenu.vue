@@ -47,6 +47,7 @@ const emit = defineEmits([
   'group',
   'ungroup',
   'recording',
+  'execute',
   'saveBlock',
   'duplicate',
   'packageIo',
@@ -111,6 +112,12 @@ const menuItems = {
     event: () => emit('duplicate', ctxData),
     shortcut: getShortcut('editor:duplicate-block').readable,
   },
+  executeFromHere: {
+    id: 'executeFromHere',
+    name: 'Execute from here',
+    icon: 'riPlayLine',
+    event: () => emit('execute', ctxData),
+  },
   startRecording: {
     id: 'startRecording',
     name: 'Record from here',
@@ -160,7 +167,13 @@ function clearContextMenu() {
 
 onMounted(() => {
   props.editor.onNodeContextMenu(({ event, node }) => {
-    const items = ['copy', 'duplicate', 'saveToFolder', 'delete'];
+    const items = [
+      'executeFromHere',
+      'copy',
+      'duplicate',
+      'saveToFolder',
+      'delete',
+    ];
     if (node.label === 'blocks-group') {
       items.splice(items.indexOf('saveToFolder'), 0, 'ungroup');
     } else if (!excludeGroupBlocks.includes(node.label)) {
