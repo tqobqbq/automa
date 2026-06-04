@@ -13,7 +13,7 @@ messageListener.on('workflow:execute', ({ workflow, options }) => {
 });
 
 messageListener.on('workflow:stop', (stateId) => {
-  WorkflowManager.instance.stopExecution(stateId);
+  return WorkflowManager.instance.stopExecution(stateId);
 });
 
 messageListener.on('workflow:pause', ({ id, data }) => {
@@ -26,7 +26,7 @@ messageListener.on('workflow:resume', ({ id, nextBlock }) => {
 });
 
 messageListener.on('workflow:update', ({ id, data }) => {
-  WorkflowManager.instance.updateExecution(id, data);
+  return WorkflowManager.instance.updateExecution(id, data);
 });
 
 messageListener.on('workflow:runtime-overlay-state', () =>

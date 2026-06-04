@@ -213,7 +213,9 @@ message.on('workflow:runtime-overlay-state', async (_, sender) => {
 
   try {
     runtimeState =
-      await BackgroundWorkflowUtils.instance.getRuntimeOverlayState();
+      await BackgroundWorkflowUtils.instance.getRuntimeOverlayState({
+        createOffscreen: false,
+      });
   } catch (error) {
     console.error('Failed to get live workflow runtime state', error);
   }

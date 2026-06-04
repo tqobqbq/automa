@@ -77,11 +77,10 @@ class BackgroundWorkflowUtils {
   async stopExecution(stateId) {
     if (IS_FIREFOX) {
       await this.#ensureWorkflowManager();
-      this.#workflowManager.stopExecution(stateId);
-      return;
+      return this.#workflowManager.stopExecution(stateId);
     }
 
-    await BackgroundOffscreen.instance.sendMessage('workflow:stop', stateId);
+    return BackgroundOffscreen.instance.sendMessage('workflow:stop', stateId);
   }
 
   /**
@@ -192,21 +191,23 @@ class BackgroundWorkflowUtils {
       },
     });
 
-    if (started && state?.id) {
-      await this.stopExecution(state.id);
-    }
-
     return started;
   }
 
   /**
    * Get the live workflow state used by runtime overlays.
+   * @param {{ createOffscreen?: boolean }} options
    * @returns {Promise<object|null>}
    */
-  async getRuntimeOverlayState() {
+  async getRuntimeOverlayState(options = {}) {
     if (IS_FIREFOX) {
       await this.#ensureWorkflowManager();
       return this.#workflowManager.getRuntimeOverlayState();
+    }
+
+    const { createOffscreen = true } = options;
+    if (!createOffscreen && !(await BackgroundOffscreen.instance.isOpened())) {
+      return null;
     }
 
     return BackgroundOffscreen.instance.sendMessage(

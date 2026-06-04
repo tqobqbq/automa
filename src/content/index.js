@@ -19,6 +19,8 @@ import showExecutedBlock from './showExecutedBlock';
 import { elementSelectorInstance } from './utils';
 
 const isMainFrame = window.self === window.top;
+const canShowRuntimeOverlayPage =
+  isMainFrame && ['http:', 'https:'].includes(window.location.protocol);
 
 function getRecordingOverlayState(recording) {
   const flows = Array.isArray(recording?.flows) ? recording.flows : [];
@@ -65,6 +67,7 @@ async function syncRuntimeOverlayState() {
     'background'
   );
   if (state) showRuntimeOverlay(state);
+  else hideRuntimeOverlay();
 }
 
 function messageToFrame(frameElement, blockData) {
@@ -379,8 +382,14 @@ async function messageListener({ data, source }) {
   });
 })();
 
-if (isMainFrame) {
+function startRuntimeOverlaySync() {
+  if (window.isAutomaRuntimeOverlaySyncStarted) return;
+  window.isAutomaRuntimeOverlaySyncStarted = true;
+
   syncRuntimeOverlayState().catch(() => {});
+  setInterval(() => {
+    syncRuntimeOverlayState().catch(() => {});
+  }, 5000);
 
   browser.storage.onChanged.addListener(({ isRecording, recording }) => {
     if (recording?.newValue) {
@@ -396,6 +405,10 @@ if (isMainFrame) {
       syncRuntimeOverlayState().catch(() => {});
     }
   });
+}
+
+if (canShowRuntimeOverlayPage) {
+  startRuntimeOverlaySync();
 }
 
 window.addEventListener('__automa-fetch__', (event) => {

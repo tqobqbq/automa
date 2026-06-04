@@ -206,9 +206,10 @@ async function stopWorkflow(button) {
 
   try {
     await sendMessage('workflow:stop', currentState.id, 'background');
+    button.textContent = 'Stopped';
   } catch (error) {
     button.disabled = false;
-    button.textContent = 'Stop';
+    button.textContent = 'Stop run';
     console.error(error);
   }
 }
@@ -228,7 +229,7 @@ async function startRecording(button) {
     if (!started) throw new Error('Unable to start recording');
   } catch (error) {
     button.disabled = false;
-    button.textContent = 'Start recording';
+    button.textContent = 'Start append';
     console.error(error);
   }
 }
@@ -241,7 +242,7 @@ async function stopRecording(button) {
     await sendMessage('recording:stop', null, 'background');
   } catch (error) {
     button.disabled = false;
-    button.textContent = 'End recording';
+    button.textContent = 'Stop append';
     console.error(error);
   }
 }
@@ -305,23 +306,25 @@ function render() {
       sendMessage('open:dashboard', '', 'background');
     });
 
-    addAction(actions, 'Stop', 'danger', (event) => {
-      stopWorkflow(event.currentTarget);
-    });
-
     if (currentState.isRecording) {
-      addAction(actions, 'End recording', 'primary', (event) => {
+      addAction(actions, 'Stop append', 'primary', (event) => {
         stopRecording(event.currentTarget);
       });
-    } else if (
-      currentState.canStartRecording ||
-      (currentState.status === 'paused-recovery' &&
-        currentState.recovery &&
-        currentState.canAppendRecording)
-    ) {
-      addAction(actions, 'Start recording', 'primary', (event) => {
-        startRecording(event.currentTarget);
+    } else {
+      addAction(actions, 'Stop run', 'danger', (event) => {
+        stopWorkflow(event.currentTarget);
       });
+
+      if (
+        currentState.canStartRecording ||
+        (currentState.status === 'paused-recovery' &&
+          currentState.recovery &&
+          currentState.canAppendRecording)
+      ) {
+        addAction(actions, 'Start append', 'primary', (event) => {
+          startRecording(event.currentTarget);
+        });
+      }
     }
 
     panel.appendChild(actions);
