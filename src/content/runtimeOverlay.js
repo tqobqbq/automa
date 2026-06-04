@@ -290,7 +290,11 @@ function render() {
       stopWorkflow(event.currentTarget);
     });
 
-    if (currentState.status === 'paused-recovery' && currentState.recovery) {
+    if (
+      currentState.status === 'paused-recovery' &&
+      currentState.recovery &&
+      currentState.canAppendRecording
+    ) {
       addAction(actions, 'Append recording', 'primary', (event) => {
         appendRecording(event.currentTarget);
       });

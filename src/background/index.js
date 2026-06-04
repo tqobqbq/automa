@@ -149,7 +149,7 @@ message.on('workflow:pause', ({ id, data }) => {
   if (!id) return null;
   return BackgroundWorkflowUtils.instance.pauseExecution(id, data);
 });
-message.on('workflow:runtime-overlay-state', async () => {
+message.on('workflow:runtime-overlay-state', async (_, sender) => {
   const { workflowStates = [] } = await browser.storage.local.get(
     'workflowStates'
   );
@@ -164,15 +164,21 @@ message.on('workflow:runtime-overlay-state', async () => {
 
   if (!activeState) return null;
 
+  const recovery = activeState.recovery || activeState.state?.recovery || null;
+  const status = activeState.status || activeState.state?.status || 'running';
+
   return {
     id: activeState.id,
     workflowId: activeState.workflowId,
     workflowName: activeState.state?.name || activeState.name,
-    status: activeState.status || activeState.state?.status || 'running',
+    status,
     currentBlock: activeState.state?.currentBlock || [],
     tabIds: activeState.state?.tabIds || [],
     logs: activeState.state?.logs || [],
-    recovery: activeState.recovery || activeState.state?.recovery || null,
+    recovery,
+    canAppendRecording:
+      status === 'paused-recovery' &&
+      recovery?.activeTab?.id === sender.tab?.id,
     startedTimestamp:
       activeState.state?.startedTimestamp || activeState.startedTimestamp,
   };

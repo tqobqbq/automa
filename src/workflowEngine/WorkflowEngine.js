@@ -37,6 +37,15 @@ async function sendRuntimeOverlayToTab(tab, message) {
   await BrowserAPIService.tabs.sendMessage(tab.id, message, { frameId: 0 });
 }
 
+function getTabRuntimeOverlayState(state, tab) {
+  return {
+    ...state,
+    canAppendRecording:
+      state.status === RECOVERY_STATUS &&
+      state.recovery?.activeTab?.id === tab.id,
+  };
+}
+
 class WorkflowEngine {
   constructor(workflow, { states, logger, blocksHandler, isPopup, options }) {
     this.id = nanoid();
@@ -890,15 +899,13 @@ class WorkflowEngine {
   async broadcastRuntimeOverlay(status = 'running', extra = {}) {
     const state = this.getRuntimeOverlayState(status, extra);
     const tabs = await BrowserAPIService.tabs.query({});
-    const message = {
-      type: 'automa:runtime-overlay:update',
-      state,
-    };
-
     await Promise.allSettled(
-      tabs
-        .filter(canShowRuntimeOverlay)
-        .map((tab) => sendRuntimeOverlayToTab(tab, message))
+      tabs.filter(canShowRuntimeOverlay).map((tab) =>
+        sendRuntimeOverlayToTab(tab, {
+          type: 'automa:runtime-overlay:update',
+          state: getTabRuntimeOverlayState(state, tab),
+        })
+      )
     );
   }
 
