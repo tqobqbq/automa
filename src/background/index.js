@@ -179,9 +179,18 @@ message.on('workflow:runtime-overlay-state', async (_, sender) => {
     canAppendRecording:
       status === 'paused-recovery' &&
       recovery?.activeTab?.id === sender.tab?.id,
+    canStartRecording: Boolean(
+      activeState.workflowId && activeState.state?.currentBlock?.[0]?.id
+    ),
     startedTimestamp:
       activeState.state?.startedTimestamp || activeState.startedTimestamp,
   };
+});
+message.on('workflow:start-runtime-recording', ({ state }, sender) => {
+  return BackgroundWorkflowUtils.instance.startRuntimeRecording(
+    state,
+    sender.tab
+  );
 });
 message.on('workflow:execute', async (workflowData, sender) => {
   if (workflowData.includeTabId) {

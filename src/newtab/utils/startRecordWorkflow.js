@@ -54,6 +54,7 @@ export default async function (options = {}) {
       recording: {
         flows,
         name: 'unnamed',
+        startedTimestamp: Date.now(),
         activeTab: {
           id: activeTab?.id,
           url: activeTab?.url,

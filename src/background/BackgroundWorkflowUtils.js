@@ -157,6 +157,49 @@ class BackgroundWorkflowUtils {
   }
 
   /**
+   * Start recording from the currently running workflow/block.
+   * @param {object} state
+   * @param {object=} tab
+   * @returns {Promise<boolean>}
+   */
+  async startRuntimeRecording(state, tab) {
+    if (state?.recovery) {
+      return this.appendRecordFromRecovery(state.recovery);
+    }
+
+    const workflowId = state?.workflowId;
+    const blockId = state?.currentBlock?.[0]?.id;
+    if (!workflowId || !blockId) return false;
+
+    const workflow = await this.constructor.getWorkflow(workflowId);
+    const sourceBlock = workflow?.drawflow?.nodes?.find(
+      (node) => node.id === blockId
+    );
+    if (!sourceBlock) return false;
+
+    const started = await startRecordWorkflow({
+      workflowId,
+      name: state.workflowName || workflow.name,
+      activeTabId: tab?.id,
+      requireActiveTabId: Boolean(tab?.id),
+      runtimeRecording: {
+        stateId: state.id,
+        blockId,
+      },
+      connectFrom: {
+        id: sourceBlock.id,
+        output: `${sourceBlock.id}-output-1`,
+      },
+    });
+
+    if (started && state?.id) {
+      await this.stopExecution(state.id);
+    }
+
+    return started;
+  }
+
+  /**
    * Update workflow execution state
    * @param {string} stateId
    * @param {object} data

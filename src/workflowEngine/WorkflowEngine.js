@@ -43,6 +43,7 @@ function getTabRuntimeOverlayState(state, tab) {
     canAppendRecording:
       state.status === RECOVERY_STATUS &&
       state.recovery?.activeTab?.id === tab.id,
+    canStartRecording: Boolean(state.workflowId && state.currentBlock?.[0]?.id),
   };
 }
 

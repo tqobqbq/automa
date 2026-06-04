@@ -20,6 +20,53 @@ import { elementSelectorInstance } from './utils';
 
 const isMainFrame = window.self === window.top;
 
+function getRecordingOverlayState(recording) {
+  const flows = Array.isArray(recording?.flows) ? recording.flows : [];
+  const lastFlow = flows.at(-1);
+
+  return {
+    id: `recording:${recording?.workflowId || 'new'}`,
+    workflowId: recording?.workflowId,
+    workflowName: recording?.name || 'Recording',
+    status: 'recording',
+    isRecording: true,
+    currentBlock: [
+      {
+        id: lastFlow?.id || 'recording',
+        name: `${flows.length} recorded action${flows.length === 1 ? '' : 's'}`,
+      },
+    ],
+    logs: lastFlow
+      ? [
+          {
+            name: lastFlow.id,
+            description: lastFlow.data?.description || lastFlow.description,
+          },
+        ]
+      : [],
+    startedTimestamp: recording?.startedTimestamp,
+  };
+}
+
+async function syncRuntimeOverlayState() {
+  const { isRecording, recording } = await browser.storage.local.get([
+    'isRecording',
+    'recording',
+  ]);
+
+  if (isRecording && recording) {
+    showRuntimeOverlay(getRecordingOverlayState(recording));
+    return;
+  }
+
+  const state = await sendMessage(
+    'workflow:runtime-overlay-state',
+    null,
+    'background'
+  );
+  if (state) showRuntimeOverlay(state);
+}
+
 function messageToFrame(frameElement, blockData) {
   return new Promise((resolve, reject) => {
     function onMessage({ data }) {
@@ -333,11 +380,22 @@ async function messageListener({ data, source }) {
 })();
 
 if (isMainFrame) {
-  sendMessage('workflow:runtime-overlay-state', null, 'background')
-    .then((state) => {
-      if (state) showRuntimeOverlay(state);
-    })
-    .catch(() => {});
+  syncRuntimeOverlayState().catch(() => {});
+
+  browser.storage.onChanged.addListener(({ isRecording, recording }) => {
+    if (recording?.newValue) {
+      showRuntimeOverlay(getRecordingOverlayState(recording.newValue));
+      return;
+    }
+
+    if (
+      isRecording &&
+      (isRecording.newValue === false || isRecording.newValue == null)
+    ) {
+      hideRuntimeOverlay();
+      syncRuntimeOverlayState().catch(() => {});
+    }
+  });
 }
 
 window.addEventListener('__automa-fetch__', (event) => {

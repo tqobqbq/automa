@@ -26,6 +26,7 @@ function getStatusLabel(status) {
     error: 'Error',
     success: 'Success',
     'partial-success': 'Partial success',
+    recording: 'Recording',
     'waiting-for-params': 'Waiting for params',
   };
 
@@ -212,22 +213,35 @@ async function stopWorkflow(button) {
   }
 }
 
-async function appendRecording(button) {
-  if (!currentState?.recovery) return;
+async function startRecording(button) {
+  if (!currentState) return;
 
   button.disabled = true;
   button.textContent = 'Starting...';
 
   try {
     const started = await sendMessage(
-      'workflow:append-record-from-recovery',
-      currentState.recovery,
+      'workflow:start-runtime-recording',
+      { state: currentState },
       'background'
     );
-    if (!started) throw new Error('Unable to start recovery recording');
+    if (!started) throw new Error('Unable to start recording');
   } catch (error) {
     button.disabled = false;
-    button.textContent = 'Append recording';
+    button.textContent = 'Start recording';
+    console.error(error);
+  }
+}
+
+async function stopRecording(button) {
+  button.disabled = true;
+  button.textContent = 'Ending...';
+
+  try {
+    await sendMessage('recording:stop', null, 'background');
+  } catch (error) {
+    button.disabled = false;
+    button.textContent = 'End recording';
     console.error(error);
   }
 }
@@ -274,7 +288,12 @@ function render() {
       }`,
       'status'
     );
-    appendText(panel, 'p', getCurrentBlock(currentState), 'meta');
+    appendText(
+      panel,
+      'p',
+      `Current block: ${getCurrentBlock(currentState)}`,
+      'meta'
+    );
 
     const lastLog = getLastLog(currentState);
     if (lastLog) appendText(panel, 'p', lastLog, 'meta');
@@ -290,13 +309,18 @@ function render() {
       stopWorkflow(event.currentTarget);
     });
 
-    if (
-      currentState.status === 'paused-recovery' &&
-      currentState.recovery &&
-      currentState.canAppendRecording
+    if (currentState.isRecording) {
+      addAction(actions, 'End recording', 'primary', (event) => {
+        stopRecording(event.currentTarget);
+      });
+    } else if (
+      currentState.canStartRecording ||
+      (currentState.status === 'paused-recovery' &&
+        currentState.recovery &&
+        currentState.canAppendRecording)
     ) {
-      addAction(actions, 'Append recording', 'primary', (event) => {
-        appendRecording(event.currentTarget);
+      addAction(actions, 'Start recording', 'primary', (event) => {
+        startRecording(event.currentTarget);
       });
     }
 
