@@ -12,6 +12,7 @@ import handleSelector, {
   queryElements,
 } from './handleSelector';
 import showRecoveryOverlay from './recoveryOverlay';
+import { hideRuntimeOverlay, showRuntimeOverlay } from './runtimeOverlay';
 import shortcutListener from './services/shortcutListener';
 import showExecutedBlock from './showExecutedBlock';
 // import elementObserver from './elementObserver';
@@ -293,6 +294,10 @@ async function messageListener({ data, source }) {
         return true;
       case 'automa:show-recovery-menu':
         return showRecoveryOverlay(data.recovery || data.data || data);
+      case 'automa:runtime-overlay:update':
+        return showRuntimeOverlay(data.state || data.data || data);
+      case 'automa:runtime-overlay:hide':
+        return hideRuntimeOverlay(data.stateId || data.id);
       case 'automa-element-selector': {
         return elementSelectorInstance();
       }
@@ -326,6 +331,14 @@ async function messageListener({ data, source }) {
     }
   });
 })();
+
+if (isMainFrame) {
+  sendMessage('workflow:runtime-overlay-state', null, 'background')
+    .then((state) => {
+      if (state) showRuntimeOverlay(state);
+    })
+    .catch(() => {});
+}
 
 window.addEventListener('__automa-fetch__', (event) => {
   const { id, resource, type } = event.detail;

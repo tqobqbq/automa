@@ -149,6 +149,34 @@ message.on('workflow:pause', ({ id, data }) => {
   if (!id) return null;
   return BackgroundWorkflowUtils.instance.pauseExecution(id, data);
 });
+message.on('workflow:runtime-overlay-state', async () => {
+  const { workflowStates = [] } = await browser.storage.local.get(
+    'workflowStates'
+  );
+  const activeState = workflowStates
+    .filter((item) => item && !item.isDestroyed)
+    .filter((item) =>
+      ['running', 'breakpoint', 'paused-recovery'].includes(
+        item.status || item.state?.status || 'running'
+      )
+    )
+    .at(-1);
+
+  if (!activeState) return null;
+
+  return {
+    id: activeState.id,
+    workflowId: activeState.workflowId,
+    workflowName: activeState.state?.name || activeState.name,
+    status: activeState.status || activeState.state?.status || 'running',
+    currentBlock: activeState.state?.currentBlock || [],
+    tabIds: activeState.state?.tabIds || [],
+    logs: activeState.state?.logs || [],
+    recovery: activeState.recovery || activeState.state?.recovery || null,
+    startedTimestamp:
+      activeState.state?.startedTimestamp || activeState.startedTimestamp,
+  };
+});
 message.on('workflow:execute', async (workflowData, sender) => {
   if (workflowData.includeTabId) {
     if (!workflowData.options) workflowData.options = {};

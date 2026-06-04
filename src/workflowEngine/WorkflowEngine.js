@@ -22,6 +22,21 @@ function canShowRecoveryOverlay(tab) {
   return Boolean(tab?.id && tab?.url?.startsWith('http'));
 }
 
+function canShowRuntimeOverlay(tab) {
+  return Boolean(tab?.id && tab?.url?.startsWith('http'));
+}
+
+async function sendRuntimeOverlayToTab(tab, message) {
+  try {
+    await BrowserAPIService.tabs.sendMessage(tab.id, message, { frameId: 0 });
+    return;
+  } catch (error) {
+    await injectContentScript(tab.id);
+  }
+
+  await BrowserAPIService.tabs.sendMessage(tab.id, message, { frameId: 0 });
+}
+
 class WorkflowEngine {
   constructor(workflow, { states, logger, blocksHandler, isPopup, options }) {
     this.id = nanoid();
@@ -361,6 +376,7 @@ class WorkflowEngine {
         parentState: this.parentWorkflow,
         teamId: this.workflow.teamId || null,
       });
+      await this.broadcastRuntimeOverlay('running');
 
       this.addWorker({ blockId: triggerBlock.id });
 
@@ -552,7 +568,7 @@ class WorkflowEngine {
       return false;
     }
 
-    this.showRecoveryOverlay(recovery);
+    await this.broadcastRuntimeOverlay(RECOVERY_STATUS, { recovery });
 
     if (recovery.segment?.id) {
       this.segmentRecoveries.push(recovery);
@@ -666,6 +682,7 @@ class WorkflowEngine {
       this.states.off('stop', this.onWorkflowStopped);
       this.states.off('resume', this.onResumeExecution);
       await this.states.delete(this.id);
+      await this.hideRuntimeOverlay();
 
       if (!this.workflow.settings?.debugMode) {
         const { user } = (await BrowserAPIService.storage.local.get(
@@ -792,6 +809,7 @@ class WorkflowEngine {
       cleanUp();
     } catch (error) {
       console.error('workflowEngine error', error);
+      await this.hideRuntimeOverlay();
       cleanUp();
     }
   }
@@ -821,7 +839,81 @@ class WorkflowEngine {
     });
 
     await this.states.update(this.id, { state });
+    this.broadcastRuntimeOverlay(state.status || 'running', { state }).catch(
+      (error) => {
+        console.error('Failed to update runtime overlay', error);
+      }
+    );
     this.dispatchEvent('update', { state });
+  }
+
+  getRuntimeOverlayState(status = 'running', extra = {}) {
+    const state = extra.state || {};
+    const currentBlock = Array.isArray(state.currentBlock)
+      ? state.currentBlock
+      : [];
+    const tabIds = Array.isArray(state.tabIds) ? state.tabIds : [];
+
+    if (currentBlock.length === 0 || tabIds.length === 0) {
+      this.workers.forEach((worker) => {
+        if (currentBlock.length === 0 && worker.currentBlock) {
+          currentBlock.push({
+            id: worker.currentBlock.id,
+            name: worker.currentBlock.label,
+            startedAt: worker.currentBlock.startedAt,
+          });
+        }
+        if (
+          worker.activeTab?.id != null &&
+          !tabIds.includes(worker.activeTab.id)
+        ) {
+          tabIds.push(worker.activeTab.id);
+        }
+      });
+    }
+
+    return {
+      id: this.id,
+      workflowId: this.workflow?.id,
+      workflowName: this.workflow?.name,
+      status: state.status || status,
+      currentBlock,
+      tabIds,
+      logs: Array.isArray(state.logs)
+        ? state.logs.slice(-5)
+        : this.history.slice(-5),
+      recovery: extra.recovery || state.recovery || null,
+      startedTimestamp: state.startedTimestamp || this.startedTimestamp,
+    };
+  }
+
+  async broadcastRuntimeOverlay(status = 'running', extra = {}) {
+    const state = this.getRuntimeOverlayState(status, extra);
+    const tabs = await BrowserAPIService.tabs.query({});
+    const message = {
+      type: 'automa:runtime-overlay:update',
+      state,
+    };
+
+    await Promise.allSettled(
+      tabs
+        .filter(canShowRuntimeOverlay)
+        .map((tab) => sendRuntimeOverlayToTab(tab, message))
+    );
+  }
+
+  async hideRuntimeOverlay() {
+    const tabs = await BrowserAPIService.tabs.query({});
+    const message = {
+      type: 'automa:runtime-overlay:hide',
+      stateId: this.id,
+    };
+
+    await Promise.allSettled(
+      tabs
+        .filter(canShowRuntimeOverlay)
+        .map((tab) => sendRuntimeOverlayToTab(tab, message))
+    );
   }
 
   dispatchEvent(name, params) {
