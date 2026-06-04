@@ -29,6 +29,10 @@ messageListener.on('workflow:update', ({ id, data }) => {
   WorkflowManager.instance.updateExecution(id, data);
 });
 
+messageListener.on('workflow:runtime-overlay-state', () =>
+  WorkflowManager.instance.getRuntimeOverlayState()
+);
+
 messageListener.on(BrowserAPIEventHandler.RuntimeEvents.ON_EVENT, (event) =>
   BrowserAPIEventHandler.instance.onBrowserEventListener(event)
 );

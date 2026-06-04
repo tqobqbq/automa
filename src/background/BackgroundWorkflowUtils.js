@@ -200,6 +200,21 @@ class BackgroundWorkflowUtils {
   }
 
   /**
+   * Get the live workflow state used by runtime overlays.
+   * @returns {Promise<object|null>}
+   */
+  async getRuntimeOverlayState() {
+    if (IS_FIREFOX) {
+      await this.#ensureWorkflowManager();
+      return this.#workflowManager.getRuntimeOverlayState();
+    }
+
+    return BackgroundOffscreen.instance.sendMessage(
+      'workflow:runtime-overlay-state'
+    );
+  }
+
+  /**
    * Update workflow execution state
    * @param {string} stateId
    * @param {object} data

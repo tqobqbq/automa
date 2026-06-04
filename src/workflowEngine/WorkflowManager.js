@@ -42,9 +42,13 @@ class WorkflowManager {
   /** @type {WorkflowLogger} */
   #logger;
 
+  /** @type {Map<string, WorkflowEngine>} */
+  #engines;
+
   constructor() {
     this.#logger = new WorkflowLogger();
     this.#state = new WorkflowState({ storage: workflowStateStorage });
+    this.#engines = new Map();
   }
 
   async execute(workflowData, options) {
@@ -69,7 +73,12 @@ class WorkflowManager {
     });
 
     const initResult = await engine.init();
+    if (initResult?.ok && initResult.status === 'running') {
+      this.#engines.set(engine.id, engine);
+    }
     engine.on('destroyed', ({ id, status, history, blockDetail, ...rest }) => {
+      this.#engines.delete(id);
+
       if (status !== 'stopped') {
         BrowserAPIService.permissions
           .contains({ permissions: ['notifications'] })
@@ -154,6 +163,52 @@ class WorkflowManager {
       executionId: engine.id,
       status: initResult?.status || 'running',
       workflowId: convertedWorkflow.id,
+    };
+  }
+
+  getRuntimeOverlayState() {
+    const activeEngine = Array.from(this.#engines.values())
+      .filter((engine) => engine && !engine.isDestroyed)
+      .at(-1);
+
+    if (activeEngine) {
+      const activeState = this.#state.states.get(activeEngine.id) || {};
+      const state = activeState.state || {};
+      const recovery = activeState.recovery || state.recovery || null;
+      const status = activeState.status || state.status || 'running';
+
+      return activeEngine.getRuntimeOverlayState(status, {
+        state,
+        recovery,
+      });
+    }
+
+    const activeState = Array.from(this.#state.states.values())
+      .filter((item) => item && !item.isDestroyed)
+      .filter((item) =>
+        ['running', 'breakpoint', 'paused-recovery'].includes(
+          item.status || item.state?.status || 'running'
+        )
+      )
+      .at(-1);
+
+    if (!activeState) return null;
+
+    const recovery =
+      activeState.recovery || activeState.state?.recovery || null;
+    const status = activeState.status || activeState.state?.status || 'running';
+
+    return {
+      id: activeState.id,
+      workflowId: activeState.workflowId,
+      workflowName: activeState.state?.name || activeState.name,
+      status,
+      currentBlock: activeState.state?.currentBlock || [],
+      tabIds: activeState.state?.tabIds || [],
+      logs: activeState.state?.logs || [],
+      recovery,
+      startedTimestamp:
+        activeState.state?.startedTimestamp || activeState.startedTimestamp,
     };
   }
 

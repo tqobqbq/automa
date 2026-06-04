@@ -149,42 +149,80 @@ message.on('workflow:pause', ({ id, data }) => {
   if (!id) return null;
   return BackgroundWorkflowUtils.instance.pauseExecution(id, data);
 });
-message.on('workflow:runtime-overlay-state', async (_, sender) => {
+
+function isActiveRuntimeState(item) {
+  return (
+    item &&
+    !item.isDestroyed &&
+    ['running', 'breakpoint', 'paused-recovery'].includes(
+      item.status || item.state?.status || 'running'
+    )
+  );
+}
+
+function normalizeRuntimeOverlayState(runtimeState) {
+  if (!runtimeState) return null;
+
+  const state = runtimeState.state || {};
+  const recovery = runtimeState.recovery || state.recovery || null;
+  const status = runtimeState.status || state.status || 'running';
+
+  return {
+    id: runtimeState.id,
+    workflowId: runtimeState.workflowId || state.workflowId,
+    workflowName: runtimeState.workflowName || state.name || runtimeState.name,
+    status,
+    currentBlock: runtimeState.currentBlock || state.currentBlock || [],
+    tabIds: runtimeState.tabIds || state.tabIds || [],
+    logs: runtimeState.logs || state.logs || [],
+    recovery,
+    startedTimestamp: runtimeState.startedTimestamp || state.startedTimestamp,
+  };
+}
+
+function addRuntimeOverlayCapabilities(runtimeState, sender) {
+  if (!runtimeState) return null;
+
+  return {
+    ...runtimeState,
+    canAppendRecording:
+      runtimeState.status === 'paused-recovery' &&
+      runtimeState.recovery?.activeTab?.id === sender.tab?.id,
+    canStartRecording: Boolean(
+      runtimeState.workflowId && runtimeState.currentBlock?.[0]?.id
+    ),
+  };
+}
+
+async function getStoredRuntimeOverlayState() {
   const { workflowStates = [] } = await browser.storage.local.get(
     'workflowStates'
   );
-  const activeState = workflowStates
-    .filter((item) => item && !item.isDestroyed)
-    .filter((item) =>
-      ['running', 'breakpoint', 'paused-recovery'].includes(
-        item.status || item.state?.status || 'running'
-      )
-    )
-    .at(-1);
 
-  if (!activeState) return null;
+  const states = Array.isArray(workflowStates)
+    ? workflowStates
+    : Object.values(workflowStates || {});
 
-  const recovery = activeState.recovery || activeState.state?.recovery || null;
-  const status = activeState.status || activeState.state?.status || 'running';
+  return normalizeRuntimeOverlayState(
+    states.filter(isActiveRuntimeState).at(-1)
+  );
+}
 
-  return {
-    id: activeState.id,
-    workflowId: activeState.workflowId,
-    workflowName: activeState.state?.name || activeState.name,
-    status,
-    currentBlock: activeState.state?.currentBlock || [],
-    tabIds: activeState.state?.tabIds || [],
-    logs: activeState.state?.logs || [],
-    recovery,
-    canAppendRecording:
-      status === 'paused-recovery' &&
-      recovery?.activeTab?.id === sender.tab?.id,
-    canStartRecording: Boolean(
-      activeState.workflowId && activeState.state?.currentBlock?.[0]?.id
-    ),
-    startedTimestamp:
-      activeState.state?.startedTimestamp || activeState.startedTimestamp,
-  };
+message.on('workflow:runtime-overlay-state', async (_, sender) => {
+  let runtimeState = null;
+
+  try {
+    runtimeState =
+      await BackgroundWorkflowUtils.instance.getRuntimeOverlayState();
+  } catch (error) {
+    console.error('Failed to get live workflow runtime state', error);
+  }
+
+  const normalizedState =
+    normalizeRuntimeOverlayState(runtimeState) ||
+    (await getStoredRuntimeOverlayState());
+
+  return addRuntimeOverlayCapabilities(normalizedState, sender);
 });
 message.on('workflow:start-runtime-recording', ({ state }, sender) => {
   return BackgroundWorkflowUtils.instance.startRuntimeRecording(
